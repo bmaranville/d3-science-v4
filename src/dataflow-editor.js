@@ -423,13 +423,11 @@ function editor(options) {
     var padding = options.padding;
     var grid_spacing = options.grid_spacing;
     var active_wire, new_wiredata;
-    var orig_x, orig_y;
     
     var drag = d3.drag()
       //.on("start", function() { orig_x = module_data.x; orig_y = module_data.y })
       .clickDistance(grid_spacing)
       .on("drag", dragmove)
-      //.origin(function(a) { return {x: module_data.x, y: module_data.y} });
       
     function dragmove() {
       if (!d3.select(this).classed("draggable")) {return}
