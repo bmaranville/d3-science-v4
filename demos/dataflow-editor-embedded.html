@@ -108,9 +108,9 @@ rect.terminal.input, rect.terminal.exposed.output {
 
 path.wire, path.exposed-wire {
   fill: none;
-  stroke-width: 5px;
+  stroke-width: 9px;
   stroke: red;
-  cursor: crosshair;
+  cursor: pointer;
 }
 
 path.exposed-wire {
@@ -235,6 +235,11 @@ e.dispatch.on("drag_module", function(module_data, dx, dy) {
 
 e.container.on('click.multiselect', function(d,i) {
   var d3_target = d3.select(d3.event.target);
+  if (contextMenuShowing) {
+      d3.event.preventDefault();
+      d3.select(".popup").remove();
+      contextMenuShowing = false;
+  }
   if (d3_target.classed("title") && (d3.event.shiftKey || d3.event.ctrlKey)) {
     d3.event.preventDefault();
     d3.event.stopPropagation();
@@ -267,27 +272,28 @@ e.container.on('contextmenu',function (d,i) {
             contextMenuShowing = true;
 
             // Build the popup            
-            popup = d3.select("#editor_div")
-            .append("div")
-            .attr("class", "popup")
-            .style("left", d3.event.x + "px")
-            .style("top", d3.event.y + "px")
-            .append("ul")
+            popup = d3.select("body")
+              .append("div")
+              .attr("class", "popup")
+              .style("left", d3.event.x + "px")
+              .style("top", d3.event.y + "px")
             
-            popup.append("li").text("delete").on("click", function() {
-                var active_data = d3_target.datum();
-                var parentNode = d3_target.node().parentNode;
-                var wires = d3.select(parentNode).datum().wires;
-                for (var i=0; i<wires.length; i++) {
-                    var w = wires[i]; 
-                    if (w.source == active_data.source && w.target == active_data.target) {
-                        wires.splice(i,1);
-                        break;
-                    }
-                };
-                e.update();
-                d3.select(".popup").remove(); 
-                contextMenuShowing=false;
+            var ul=popup.append("ul")
+            
+            ul.append("li").text("delete").on("click", function() {
+              var active_data = d3_target.datum();
+              var parentNode = d3_target.node().parentNode;
+              var wires = d3.select(parentNode).datum().wires;
+              for (var i=0; i<wires.length; i++) {
+                  var w = wires[i]; 
+                  if (w.source == active_data.source && w.target == active_data.target) {
+                      wires.splice(i,1);
+                      break;
+                  }
+              };
+              e.update();
+              popup.remove(); 
+              contextMenuShowing=false;
             });
             
         }
@@ -296,32 +302,33 @@ e.container.on('contextmenu',function (d,i) {
             contextMenuShowing = true;
 
             // Build the popup            
-            popup = d3.select("#editor_div")
-            .append("div")
-            .attr("class", "popup")
-            .style("left", d3.event.x + "px")
-            .style("top", d3.event.y + "px")
-            .append("ul")
+            popup = d3.select("body")
+              .append("div")
+              .attr("class", "popup")
+              .style("left", d3.event.x + "px")
+              .style("top", d3.event.y + "px")
             
-            popup.append("li").text("delete").on("click", function() {
-                var active_data = d3_target.datum();
-                if (active_data.source[0] == -1) {
-                  e.svg().datum().inputs.forEach(function(f) { 
-                    if (f.id == active_data.source[1]) {
-                      f.target = null;
-                    }
-                  });
-                }
-                if (active_data.target[0] == -1) {
-                  e.svg().datum().outputs.forEach(function(f) { 
-                    if (f.id == active_data.target[1]) {
-                      f.target = null;
-                    }
-                  });
-                }
-                e.update();
-                d3.select(".popup").remove(); 
-                contextMenuShowing=false;
+            var ul = popup.append("ul")
+            
+            ul.append("li").text("delete").on("click", function() {
+              var active_data = d3_target.datum();
+              if (active_data.source[0] == -1) {
+                e.svg().datum().inputs.forEach(function(f) { 
+                  if (f.id == active_data.source[1]) {
+                    f.target = null;
+                  }
+                });
+              }
+              if (active_data.target[0] == -1) {
+                e.svg().datum().outputs.forEach(function(f) { 
+                  if (f.id == active_data.target[1]) {
+                    f.target = null;
+                  }
+                });
+              }
+              e.update();
+              popup.remove(); 
+              contextMenuShowing=false;
             });
         }
         else if (d3_target.classed("title")) {
@@ -339,27 +346,49 @@ e.container.on('contextmenu',function (d,i) {
               
               var ul = popup.append("ul");
               
+              var copy = function() {
+                popup.remove();
+                var datum = e.svg().datum();
+                var modules_to_copy = []; 
+                var module_index_lookup = {};
+                e.svg().selectAll("g.module.highlight").each(function(d,i) {
+                  modules_to_copy.push(d);
+                  var old_index = this.getAttribute("index");
+                  module_index_lookup[old_index] = i;
+                });
+                modules_to_copy = jqueryExtend.extend(true, [], modules_to_copy);
+                var wires_to_copy = [];
+                datum.wires.forEach(function(w,i) { 
+                  var ks = w.source[0].toString(),
+                      kt = w.target[0].toString();
+                  if (ks in module_index_lookup && kt in module_index_lookup) {
+                    var new_wire = jqueryExtend.extend(true, {}, w);
+                    new_wire.source[0] = module_index_lookup[ks];
+                    new_wire.target[0] = module_index_lookup[kt];
+                    wires_to_copy.push(new_wire);
+                  }
+                });
+                modules_to_copy.forEach(function(d) { delete d.module_id });
+                var content = {"modules": modules_to_copy, "wires": wires_to_copy}
+                e._clipboard = {reference_pos: target_pos, content: content};
+                e.update();
+                contextMenuShowing=false;
+              }
+              
+              var cut = function() {
+                copy();
+                var to_cut = [];
+                e.svg().selectAll("g.module.highlight").each(function(d,i) {
+                  to_cut.push(d.module_id);
+                });
+                e._clipboard.to_cut = to_cut;
+              }
+              
               var buttons = ul.append("li").style("text-align", "right")
               buttons
-                .append("button").text("dismiss")
-                  .on("click", function() {
-                    popup.remove(); 
-                    e.update();
-                    contextMenuShowing=false;
-                  });
+                .append("button").text("cut").on("click", cut);
               buttons
-                .append("button").text("copy")
-                  .on("click", function() {
-                    popup.remove();
-                    var datum = e.svg().datum();
-                    var to_copy = e.svg().selectAll("g.module.highlight").data();
-                    to_copy = jqueryExtend.extend(true, [], to_copy);
-                    to_copy.forEach(function(d) { delete d.module_id });
-                    console.log(to_copy);
-                    e._clipboard = {reference_pos: target_pos, content: to_copy};
-                    e.update();
-                    contextMenuShowing=false;
-                  });
+                .append("button").text("copy").on("click", copy);
               buttons
                 .append("button").text("delete modules")
                   .on("click", function() {
@@ -465,9 +494,7 @@ e.container.on('contextmenu',function (d,i) {
             var ul = popup.append("ul");
             
             var side = d3_target.classed("output") ? "inputs" : "outputs";
-            //popup.append("li").text("configure").on("click", function() {alert("implement configure"); d3.select(".popup").remove(); contextMenuShowing=false;});
             ul.append("li").text("delete").on("click", function() {
-                //d3.select(d3_target.node().parentNode.parentNode).remove();
                 var term_id = grandparent.datum().id;
                 e.svg().datum()[side] = e.svg().datum()[side].filter(function(d) { 
                   return d.id != term_id
@@ -483,6 +510,10 @@ e.container.on('contextmenu',function (d,i) {
           contextMenuShowing = true;
           
           var to_paste = jqueryExtend.extend(true, {}, e._clipboard.content);
+          var rx = e._clipboard.reference_pos[0];
+          var ry = e._clipboard.reference_pos[1];
+          
+          
           
           // Build the popup            
           popup = d3.select("body")
@@ -494,15 +525,35 @@ e.container.on('contextmenu',function (d,i) {
           var ul = popup.append("ul")
           
           ul.append("li").text("paste").on("click", function() {
-              console.log(d3_target, d3.select(d3_target.node().parentNode.parentNode));
-              //d3.select(d3_target.node().parentNode.parentNode).remove();
-              var term_id = d3_target.datum().id;
-              console.log(term_id);
-              e.svg().datum()[side] = e.svg().datum()[side].filter(function(d) { 
-                return d.id != term_id
+              popup.remove();
+              
+              var datum = e.svg().datum();
+              if (e._clipboard.to_cut) {
+                var modules = datum.modules || [];
+                modules = modules.filter(function(m) { return (e._clipboard.to_cut.indexOf(m.module_id) < 0) });
+                datum.modules = modules;
+                e.update();
+                e._clipboard.to_cut = null;
+              }
+              
+              var start_module_index = (datum.modules || []).length;
+              
+              to_paste.modules.forEach(function(m) {
+                m.x += d3.event.x - rx;
+                m.y += d3.event.y - ry;
               });
-              popup.remove(); 
+              
+              to_paste.wires.forEach(function(w) {
+                w.source[0] += start_module_index;
+                w.target[0] += start_module_index;
+              })
+              
+              e.svg().selectAll("g.module.highlight").classed("highlight", false);              
+              datum.modules.push.apply(datum.modules, to_paste.modules);
               e.update();
+              datum.wires.push.apply(datum.wires, to_paste.wires)
+              e.update();
+              e.svg().selectAll("g.module").filter(function(d,i) { return i >= start_module_index }).classed("highlight", true);
               contextMenuShowing=false;
           });
         }
