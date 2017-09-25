@@ -179,7 +179,6 @@ function brushended(d, i) {
   var s = d3.event.selection;
   if (!s) {
     if (!idleTimeout) return idleTimeout = setTimeout(idled, idleDelay);
-    console.log('no s');
   } else {
     var checker = insideChecker(s);
     //console.log(s, e.svg().selectAll("g.module").filter(checker));
