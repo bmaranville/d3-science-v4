@@ -115,7 +115,10 @@ function editor(options) {
     outputs.forEach(reindex);
     fields.forEach(reindex);
     // remove exposed fields when the target module goes away...
-    datum.fields = fields.filter(function(f) { return f.target != null });
+    for (var i = fields.length - 1; i >= 0; i--){
+      // go through the array backwards to avoid renumbering problems
+      if (fields[i].target == null) { fields.splice(i, 1); }
+    }
   }
   
   function generate_exposed_wires() {
