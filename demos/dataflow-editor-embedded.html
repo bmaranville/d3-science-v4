@@ -171,10 +171,7 @@ e.svg().append("g")
 function idled() {
   idleTimeout = null;
 }
-  
-function brushed(d,i) {
-  console.log('brushed', d, i, this);
-}
+
 function brushended(d, i) {
   var s = d3.event.selection;
   if (!s) {
