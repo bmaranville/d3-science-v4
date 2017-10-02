@@ -1,10 +1,10 @@
 before_script:
   - npm install -g babel-cli
-  - npm install babel-preset-es2015 babel-plugin-transform-es2015-modules-umd
+  - npm install babel-preset-env
 script: bash ./deploy.sh
 env:
   global:
-  - ENCRYPTION_LABEL: ce4ca43dbbd7
+  - ENCRYPTION_LABEL: 2c4d9ad40ea6
 language: node_js
 node_js:
 - stable
