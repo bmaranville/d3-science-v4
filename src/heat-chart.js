@@ -11,7 +11,7 @@ export default function heatChart(options_override) {
   var debug=false;
   var options_defaults = {
     margin: {top: 10, right: 10, bottom: 50, left: 50},
-    cb_margin: {top: 10, right: 50, bottom: 50, left: 10},
+    cb_margin: {top: 10, right: 60, bottom: 50, left: 10},
     show_grid: true,
     show_colorbar: true,
     position_cursor: true,
@@ -123,6 +123,11 @@ export default function heatChart(options_override) {
         width = innerwidth - options.margin.right - options.margin.left,
         height = innerheight - options.margin.top - options.margin.bottom;
       chart.outercontainer = outercontainer;
+      var wrapper = outercontainer.append("div")
+        .style("display", "flex")
+        .style("flex-direction", "row")
+      chart.wrapper = wrapper;
+      
       source_data = data;
       //chart.update = function() { outercontainer.transition().call(chart); chart.colorbar.update(); };   
       if (options.autoscale) {
@@ -181,13 +186,10 @@ export default function heatChart(options_override) {
         .ticks(options.numberOfTicks)
         .tickPadding(10);        
       
-      var container = outercontainer.append("div")
+      var container = wrapper.append("div")
         .attr("class", "heatmap-container")
-        .attr("width", innerwidth)
-        .attr("height", innerheight)
-        .style("display", "inline-block")
+        .style("flex", 1)
         .style("position", "relative")
-        .style("width", innerwidth + "px")
         .style("height", innerheight + "px");
       
       var mainCanvas = container.append("canvas");
@@ -277,7 +279,7 @@ export default function heatChart(options_override) {
         offset_left = 0,
         innerwidth = options.colorbar_width,
         innerheight = outercontainer.node().clientHeight,
-        width = innerwidth - options.cb_margin.right,
+        width = innerwidth - options.cb_margin.right - options.cb_margin.left,
         height = innerheight - options.cb_margin.top - options.cb_margin.bottom;
       //colorbar.name = "colorbar";
       chart.colorbar.outercontainer = outercontainer;
@@ -297,12 +299,10 @@ export default function heatChart(options_override) {
       
       // if inner container doesn't exist, build it.
       var colorbarCanvas;
-      var container = outercontainer.append("div")
+      var container = chart.wrapper.append("div")
         .attr("class", "colorbar-container")
-        .attr("width", innerwidth)
-        .attr("height", innerheight)
-        .style("display", "inline-block")
-        .style("width", innerwidth + "px")
+        .style("position", "relative")
+        .style("flex", "0 0 " + innerwidth + "px")
         .style("height", innerheight + "px");
         
       var colorbarCanvas = container.append("canvas")
@@ -311,9 +311,8 @@ export default function heatChart(options_override) {
         .attr("class", "colorbar")
         .style("width", width + "px")
         .style("height", height + "px")
-        .style("padding-left", offset_left + "px")
-        .style("padding-right", options.cb_margin.right + "px")
-        .style("padding-top", options.cb_margin.top + "px")
+        .style("top", options.cb_margin.top + "px")
+        .style("left", options.cb_margin.left + "px")
 
       colorbarCanvas.call(drawScale);
                 
@@ -332,11 +331,11 @@ export default function heatChart(options_override) {
     
       svg.select(".z.axis").call(zAxis);
       
-      svg.attr("width", width + options.cb_margin.left + options.cb_margin.right)
-          .attr("height", height + options.cb_margin.top + options.cb_margin.bottom);
+      svg.attr("width", innerwidth)
+          .attr("height", innerheight);
       
       svg.selectAll("g.z")
-        .attr("transform", "translate(" + width + "," + options.cb_margin.top + ")");
+        .attr("transform", "translate(" + (innerwidth - options.cb_margin.right) + "," + options.cb_margin.top + ")");
         
       chart.colorbar.svg = svg;
     });
