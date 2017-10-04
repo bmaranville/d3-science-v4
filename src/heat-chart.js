@@ -865,6 +865,7 @@ export default function heatChart(options_override) {
   chart.autofit = function() {
     var offset_right = (options.show_colorbar) ? options.colorbar_width + 5 : 0;
     var outercontainer = chart.outercontainer,
+        wrapper = chart.wrapper,
         innerwidth = outercontainer.node().clientWidth - offset_right,
         innerheight = outercontainer.node().clientHeight,
         width = innerwidth - options.margin.right - options.margin.left,
@@ -885,20 +886,18 @@ export default function heatChart(options_override) {
     orig_y = y.copy();
     
     //zoom.x(x).y(y);
-    outercontainer.select(".heatmap-container")
-      .attr("width", innerwidth)
+    wrapper.select(".heatmap-container")
       .attr("height", innerheight)
-      .style("width", innerwidth + "px")
       .style("height", innerheight + "px");
     
-    outercontainer.select("canvas.mainplot")
+    wrapper.select("canvas.mainplot")
           .attr("width", width)
           .attr("height", height)
           .style("width", width + "px")
           .style("height", height + "px")
       
-    chart.svg.attr("width", width + options.margin.left + options.margin.right)
-          .attr("height", height + options.margin.top + options.margin.bottom);
+    chart.svg.attr("width", innerwidth)
+          .attr("height", innerheight);
     
     chart.mainview
       .attr("width", width)
@@ -910,18 +909,18 @@ export default function heatChart(options_override) {
     chart.svg.selectAll(".y.axis-label").attr("x", -height/2.0);
           
     var innerwidth = options.colorbar_width,
-        width = innerwidth - options.cb_margin.right,
+        width = innerwidth - options.cb_margin.right - options.cb_margin.left,
         height = innerheight - options.cb_margin.top - options.cb_margin.bottom;
     
     z.range([height, 0]);
     
-    outercontainer.select(".colorbar-container")
+    wrapper.select(".colorbar-container")
         .attr("width", innerwidth)
         .attr("height", innerheight)
         .style("width", innerwidth + "px")
         .style("height", innerheight + "px");
     
-    outercontainer.select("canvas.colorbar")
+    wrapper.select("canvas.colorbar")
           .attr("width", width)
           .attr("height", height)
           .style("width", width + "px")
@@ -929,11 +928,11 @@ export default function heatChart(options_override) {
           .call(drawScale);
     
     chart.colorbar.svg.select(".z.axis").call(zAxis);
-    chart.colorbar.svg.attr("width", width + options.cb_margin.left + options.cb_margin.right)
-      .attr("height", height + options.cb_margin.top + options.cb_margin.bottom);
+    chart.colorbar.svg.attr("width", innerwidth)
+      .attr("height", innerheight);
       
     chart.colorbar.svg.selectAll("g.z")
-        .attr("transform", "translate(" + width + "," + options.cb_margin.top + ")");
+        .attr("transform", "translate(" + (innerwidth - options.cb_margin.right) + "," + options.cb_margin.top + ")");
 
     chart.position_cursor(options.position_cursor);
     _redraw_main = true;

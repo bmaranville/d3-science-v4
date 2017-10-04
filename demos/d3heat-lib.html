@@ -21,6 +21,7 @@ body {
 
 #plot1 {
     flex: 1;
+    overflow: hidden;
 }
 
 svg,
@@ -99,7 +100,7 @@ window.onload = function() {
 
   d3.json("sample_data/512.json", function(error, heatmap) {
       //mydata = heatmap;
-      c = d3.select(".plotwrapper")
+      c = d3.select("#plot1")
         .data([heatmap])
         .call(chart);
   });
@@ -112,7 +113,6 @@ window.onload = function() {
 
 </script>
 <div id="plot1">
-  <div class="plotwrapper"></div>
 </div>
 <div id="demos">
   <pre>chart.colormap(colormap.get_colormap(<select id="colormap_select" onchange="chart.colormap(colormap.get_colormap(this.value)).redrawImage(); chart.colorbar.update();"></select>)).redrawImage();</pre>
