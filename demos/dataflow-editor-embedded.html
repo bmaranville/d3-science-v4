@@ -603,7 +603,7 @@ var module_defs = instruments[current_instrument].modules,
 d3.select("#new_module").selectAll("option").data(module_names)
   .enter().append('option')
   .attr("module", function(d) {return d}) // function(d) {return module_defs[d].module})
-  .text(function(d) {return module_defs[d].name})  
+  .text(function(d) {return module_defs[d].title})
   
 d3.select('#new_module').on("change", function(ev) {
     var title = this.value,
