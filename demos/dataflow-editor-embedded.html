@@ -479,7 +479,8 @@ explode2 = function(module, current_template, callback) {
   
   var tr = d3.transition()
     .duration(d)
-    .ease(d3.easeLinear);
+    .ease(d3.easeCubicIn);
+    //.ease(d3.easeLinear);
     
   var transform = "scale(" + multiplier + ", " + multiplier + ")";
   outer_svg.transition(tr).attr("transform", transform).style("opacity", 0).on("end", function() { console.log("exploding!", this); d3.select(this).style("display", "none")});
@@ -587,7 +588,7 @@ unexplode2 = function(stored_template, stored_x, stored_y) {
   
   var tr = d3.transition()
     .duration(d)
-    .ease(d3.easeLinear);
+    .ease(d3.easeCubicOut);
   
   e.svg().transition(tr).attr("transform", "scale(1,1)").style("opacity", 1)
     .on("end", function() {e.import(to_restore.template)});

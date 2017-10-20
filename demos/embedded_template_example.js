@@ -27,7 +27,7 @@ embedded_template_example = {
       "title": "fancy load",
       "x": 85,
       "y": 80,
-      "module": {
+      "module_def": {
         "title": "my module",
         "fields": [
           {"id": "specular", "target": [0, "filelist"]},
