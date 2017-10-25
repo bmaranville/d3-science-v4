@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <title>Reflectometer alignment</title>
   <script src="//d3js.org/d3.v4.js" charset="utf-8"></script>
+  <script src="Pizzicato.min.js"></script>
+  <script src="tickplay.js"></script>
   <script src="../lib/linePolygonIntersect.js"></script>
   <script src="../lib/jquery-extend.js"></script>
   <style type="text/css">
@@ -35,6 +37,8 @@
 <body>
   <script>
     window.onload = function() {
+      console.log(ticker);
+      window.ticker.play();
       var extend = jqueryExtend.extend;
       var linePolygonIntersects = linePolygonIntersect.linePolygonIntersects;
       var width = 960,
@@ -489,10 +493,14 @@
     }
     
     function detection_handler(elapsed) {
+      ping.push(elapsed);
+      //setTimeout(function() { ping += 3 }, 1000*offset);
+      // ping = 3;
       //detected.push(elapsed);
     }
     function tick(elapsed) {
       //var elapsed = elapsed || (new Date()).getTime();
+      global_elapsed = elapsed;
       var neutrons = svg.selectAll("circle.neutron");
       neutrons.each(function(d) {
         var newx = d.x_start + (elapsed - d.t0) * d.vx;
@@ -593,7 +601,9 @@
             detector_intersect = linePolygonIntersects(line, det_poly[det].points, true);
             if (detector_intersect.length > 0) {
               d.reap = true;
-              detection_handler(elapsed);
+              var u = detector_intersect[0].u;
+              //console.log('u:', u/60);
+              detection_handler(elapsed + 1000*u/60);
               return;
             }
           }
