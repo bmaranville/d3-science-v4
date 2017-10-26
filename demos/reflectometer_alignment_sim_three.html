@@ -6,12 +6,15 @@
   <script src="//cdnjs.cloudflare.com/ajax/libs/three.js/87/three.min.js"></script>
   <script src="//rawgit.com/mrdoob/stats.js/master/build/stats.min.js"></script>
   <script src="//d3js.org/d3.v4.js" charset="utf-8"></script>
+  <script src="Pizzicato.min.js"></script>
+  <script src="tickplay.js"></script>
   <script src="../lib/linePolygonIntersect.js"></script>
   <script src="../lib/jquery-extend.js"></script>
   <style type="text/css">
     svg, body {
       margin: 0px;
       padding: 0px;
+      font-family: Arial, Helvetica, sans-serif !important;
     }
     svg circle.neutron {
       fill: blue;
@@ -47,7 +50,17 @@
 <body>
   <script>
     SHOW_STATS = false;
-    window.onload = function() {
+    window.onload = function() { 
+      var sound_active = d3.select("input.sound-toggle").property("checked");
+      d3.select("input.sound-toggle").on("change", function() {
+        sound_active = this.checked;
+        if (sound_active) {
+          window.ping = [];
+          window.ticker.play();
+        } else {
+          window.ticker.stop();
+        }
+      })
       var extend = jqueryExtend.extend;
       var linePolygonIntersects = linePolygonIntersect.linePolygonIntersects;
       var width = 960,
@@ -57,7 +70,7 @@
         apertureHeight = 60,
         r = 2,
         rate = 0.5, // per second
-        speed = 0.5,
+        speed = 0.25,
         wavelength = 5.0,
         k_0 = 2*Math.PI/wavelength,
         max_angle = 5.0 * Math.PI/180.0, // 5 degree
@@ -131,7 +144,7 @@
       ];
       
       
-      var svg = d3.select("body").append("svg")
+      var svg = d3.select("div.sim").append("svg")
         .attr("width", width)
         .attr("height", height);
       
@@ -498,6 +511,7 @@
         detected = [];
     
     function detection_handler(elapsed) {
+      if (sound_active) { window.ping.push(elapsed); }
       //detected.push(elapsed);
     }
     
@@ -541,59 +555,55 @@
 
     let pointsMaterial;
 
-        pointsGeometry = new THREE.Geometry();
-        let sprite = new THREE.TextureLoader().load( "./disc.png" );
-        //particles = new THREE.Geometry();
-        //pMaterial = new THREE.ParticleBasicMaterial({
-        //  color: 0xFFFFFF,
-        //  size: 20
-        //});
-        const colors = [];
-        disabled_vertices = [];
-        active_vertices = [];
-        //for (const point of raw_points) {
-        //  const vertex = new THREE.Vector3(point.coords[0], point.coords[1], 0);
-        for (var i=0; i<particleCount; i++) {
-          let vertex = new THREE.Vector3(-width/2.0 - 100, 0, 0);
-          vertex.speed = 0;
-          vertex.angle = 0;
-          vertex.disabled = true;
-          pointsGeometry.vertices.push(vertex);
-          disabled_vertices.push(i);
-          
-          const color = new THREE.Color();
-          //color.setHSL(Math.random(), 1.0, 0.5);
-          color.setRGB(0, 0, 1);
-          colors.push(color);
-        }
-        pointsGeometry.colors = colors;
-        pointsMaterial = new THREE.PointsMaterial({
-          // map: spriteMap,
-          map: sprite,
-          size: 6,
-          transparent: true,
-          // blending: THREE.AdditiveBlending,
-          sizeAttenuation: false,
-          vertexColors: THREE.VertexColors,
-        });
-        rpoints = new THREE.Points(pointsGeometry, pointsMaterial);
-        //particleSystem = new THREE.ParticleSystem(
-        //  particles,
-        //  pMaterial);
-        pointsContainer = new THREE.Object3D();
-        pointsContainer.add(rpoints);
-        scene.add(pointsContainer);
-        var before;
-        //scene.add(particleSystem);
+    pointsGeometry = new THREE.Geometry();
+    let sprite = new THREE.TextureLoader().load( "./disc.png" );
+
+    const colors = [];
+    disabled_vertices = [];
+    active_vertices = [];
+
+    for (var i=0; i<particleCount; i++) {
+      let vertex = new THREE.Vector3(-width/2.0 - 100, 0, 0);
+      vertex.speed = 0;
+      vertex.angle = 0;
+      vertex.disabled = true;
+      pointsGeometry.vertices.push(vertex);
+      disabled_vertices.push(i);
+      
+      const color = new THREE.Color();
+      //color.setHSL(Math.random(), 1.0, 0.5);
+      color.setRGB(0, 0, 1);
+      colors.push(color);
+    }
+    pointsGeometry.colors = colors;
+    pointsMaterial = new THREE.PointsMaterial({
+      map: sprite,
+      size: 6,
+      transparent: true,
+      // blending: THREE.AdditiveBlending,
+      sizeAttenuation: false,
+      vertexColors: THREE.VertexColors,
+    });
+    rpoints = new THREE.Points(pointsGeometry, pointsMaterial);
+    //particleSystem = new THREE.ParticleSystem(
+    //  particles,
+    //  pMaterial);
+    pointsContainer = new THREE.Object3D();
+    pointsContainer.add(rpoints);
+    scene.add(pointsContainer);
+    var start_time = Date.now();
+    var before;
+
     // Three.js render loop
     function animate() {
       var now = Date.now();
       before = before || now;
+      var total_time = now - start_time;
       var elapsed = now - before;
-      global_elapsed = elapsed;
+      global_elapsed = total_time;
       before = now;
       
-      var dt = 1000.0/60.0;
+      var dt = elapsed || 1000.0/60.0;
       var number = Math.ceil(500.0/dt * rate);
       for (var i=0; i<number; i++) {
         let index = disabled_vertices.pop();
@@ -664,7 +674,10 @@
             detector_intersect = linePolygonIntersects(line, det_poly[det].points, true);
             if (detector_intersect.length > 0) {
               reap(particle, index, pCount);
-              detection_handler(elapsed);
+              var u = detector_intersect[0].u;
+              //console.log('u:', u/60);
+              detection_handler(total_time + dt*u);
+              //detection_handler(total_time + );
               continue check_interactions;
             }
           }
@@ -721,5 +734,7 @@
     }
   }
   </script>
+  <div class="sim"></div>
+  <label>Play detection sounds<input type="checkbox" class="sound-toggle" name="sound_toggle" value="value" size="12" /></label>
 </body>
 </html>
