@@ -46,6 +46,7 @@
 </head>
 <body>
   <script>
+    SHOW_STATS = false;
     window.onload = function() {
       var extend = jqueryExtend.extend;
       var linePolygonIntersects = linePolygonIntersect.linePolygonIntersects;
@@ -56,7 +57,7 @@
         apertureHeight = 60,
         r = 2,
         rate = 0.5, // per second
-        speed = 0.25,
+        speed = 0.5,
         wavelength = 5.0,
         k_0 = 2*Math.PI/wavelength,
         max_angle = 5.0 * Math.PI/180.0, // 5 degree
@@ -233,12 +234,13 @@
             dxr = sign * s * d3.event.dx,
             dyr = sign * c * d3.event.dy;
         d.aperture += (dxr - dyr);
+        d.aperture = Math.max(d.aperture, 0);
         svg.selectAll("g.slit polygon.above")
           .attr("points", render_slit_above)
         svg.selectAll("g.slit polygon.below")
           .attr("points", render_slit_below)
         slits_bb = svg.selectAll("g.slit polygon").nodes().map(function(p) {return p.getBBox()});
-        console.log(dxr + dyr)
+        //console.log(dxr + dyr)
       }
       
       sbelow.call(drag_slit);
@@ -511,11 +513,13 @@
     document.body.appendChild(renderer.domElement);
 
     // Add stats box
-    stats = new Stats();
-    stats.dom.style.position = 'absolute';
-    stats.dom.style.top = '0px';
-    stats.dom.style.right = '0px'
-    document.body.appendChild(stats.dom);
+    if (SHOW_STATS) {
+      stats = new Stats();
+      stats.dom.style.position = 'absolute';
+      stats.dom.style.top = '0px';
+      stats.dom.style.right = '0px'
+      document.body.appendChild(stats.dom);
+    }
 
     const near_plane = 1;
     const far_plane = 100;
@@ -602,7 +606,7 @@
         //let vertex = new THREE.Vector3(10*(Math.random()-0.5), 10*(Math.random()-0.5), 0);
           
         vertex.angle = (Math.random() - 0.5) * max_angle;
-        vertex.speed = speed; //*(1.0 + 0.03*(Math.random() - 0.5))
+        vertex.speed = speed*(1.0 + 0.05*(Math.random() - 0.5))
         vertex.vx = vertex.speed * Math.cos(vertex.angle);
         vertex.vy = vertex.speed * Math.sin(vertex.angle);
         vertex.velocity = {x: (Math.random()-0.5), y: (Math.random()-0.5), z: 0}
@@ -617,6 +621,7 @@
       
       var pCount = active_vertices.length;
       
+      check_interactions:
       while (pCount--) {
         var index = active_vertices[pCount];
         // get the particle
@@ -644,7 +649,8 @@
             slit_intersects = linePolygonIntersects(line, poly_points, true);
             if (slit_intersects.length > 0) {
               reap(particle, index, pCount);
-              continue;
+              
+              continue check_interactions;
             }
           }
         }
@@ -659,7 +665,7 @@
             if (detector_intersect.length > 0) {
               reap(particle, index, pCount);
               detection_handler(elapsed);
-              continue;
+              continue check_interactions;
             }
           }
         }
@@ -703,7 +709,7 @@
           verticesNeedUpdate = true;
       
       renderer.render(scene, camera);
-      stats.update();
+      if (SHOW_STATS) { stats.update(); }
       requestAnimationFrame(animate);
     }
     animate();
