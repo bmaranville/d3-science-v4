@@ -539,7 +539,7 @@
       update_sel.enter()
         .append("circle")
           .classed("neutron", true)
-          .attr("cx", 0)
+          .attr("cx", function(d) {return d.x_start})
           .attr("cy", function(d) {return d.y_start})
           .attr("r", r)
           //.attr("fill", "blue")
