@@ -7,3 +7,4 @@ Demos:
   * [Heatmap charts in 2d](demos/d3heat-lib.html)
   * [Dataflow diagram editor](demos/dataflow-editor-embedded.html)
   * [Simulation of reflectometer alignment](demos/reflectometer_alignment_sim.html)
+  * [Reflectometer simulation with detector event sounds](demos/reflectometer_alignment_sim_three.html)
