@@ -578,16 +578,13 @@
     pointsGeometry.colors = colors;
     pointsMaterial = new THREE.PointsMaterial({
       map: sprite,
-      size: 6,
+      size: 2*r,
       transparent: true,
       // blending: THREE.AdditiveBlending,
       sizeAttenuation: false,
       vertexColors: THREE.VertexColors,
     });
     rpoints = new THREE.Points(pointsGeometry, pointsMaterial);
-    //particleSystem = new THREE.ParticleSystem(
-    //  particles,
-    //  pMaterial);
     pointsContainer = new THREE.Object3D();
     pointsContainer.add(rpoints);
     scene.add(pointsContainer);
