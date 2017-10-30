@@ -50,8 +50,13 @@
 <body>
   <script>
     SHOW_STATS = false;
-    window.onload = function() { 
-      var sound_active = d3.select("input.sound-toggle").property("checked");
+    window.onload = function() {
+      var sound_toggle = d3.select("input.sound-toggle");
+      if (window.ticker == null) { 
+        sound_toggle.property("disabled", true); 
+        sound_toggle.attr("title", "Web audio not supported in this browser");
+      }
+      var sound_active = sound_toggle.property("checked");
       d3.select("input.sound-toggle").on("change", function() {
         sound_active = this.checked;
         if (sound_active) {
@@ -504,7 +509,7 @@
     var gauss = d3.randomNormal(0,1);
     //var t = d3.timer(tick);
     //var td = d3.timer(draw);
-    var ticker; // = setInterval(tick, 20);
+    //var ticker; // = setInterval(tick, 20);
     var particles = [];
     var part_id = 0,
         prev_elapsed = 0,
