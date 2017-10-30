@@ -156,8 +156,8 @@ function editor(options) {
     svg.selectAll(".module").each(function(d,i) { old_ids[d.module_id] = i });
     var module_update = svg.selectAll(".module").data(function(d) {return d.modules}, key_fn);
     var en = module_update.enter();
-    en.append(module);
-    module_update.exit().remove();
+    en.append(module); // .each(function(d) {additions.push(d.module_id)});
+    module_update.exit()/*.each(function(d) {removals.push(d.module_id)})*/.remove();
     module_update.attr("index", function(d,i) {return i});
     svg.selectAll(".module").each(function(d,i) { new_ids[d.module_id] = i });
     for (var ii in old_ids) {
