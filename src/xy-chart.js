@@ -233,9 +233,6 @@ function xyChart(options_override) {
       var mainview = svg.append("g")
         .attr("class", "mainview")
         .attr("transform", "translate(" + options.margin.left + "," + options.margin.top + ")");  
-
-      var drag = d3.drag();
-      drag.on("start", drag_started);
       
       function drag_started() {
         if (!zoomRect) return;
@@ -272,8 +269,23 @@ function xyChart(options_override) {
         }
       }
       
-      svg.call(drag);
-      chart.drag = drag;
+      chart.zoomRect = function(_) {
+        if (!arguments.length) return zoomRect;
+        if (_ == zoomRect) { return }
+        else {
+          zoomRect = _;
+          if (zoomRect == true) {
+            var drag = d3.drag();
+            drag.on("start", drag_started);
+            svg.call(drag);
+          } 
+          else {
+            svg.on('.drag', null);
+          }
+        }
+        return chart;
+      };
+      
       chart.zoom = zoom;
       
       
@@ -749,12 +761,6 @@ function xyChart(options_override) {
     chart.max_y = function(_) {
       if (!arguments.length) return max_y;
       max_y = _;
-      return chart;
-    };
-    
-    chart.zoomRect = function(_) {
-      if (!arguments.length) return zoomRect;
-      zoomRect = _;
       return chart;
     };
     
