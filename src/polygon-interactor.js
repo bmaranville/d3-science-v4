@@ -49,17 +49,23 @@ function polygonInteractor(state, x, y) {
     interactor.update = function() {
         
       var corners = corner_group.selectAll('.corner').data(state.points)
-      var new_corners = corners.enter().append("circle")
+      var new_corners = corners.enter();
+      new_corners.append("circle");
+
+      var defunct_corners = corners.exit();
+      defunct_corners.remove();
+      corners
         .classed("corner", true)
         .attr("vertex", function(d,i) { return i.toFixed()})
-        .attr("r", radius);
-      if (!fixed) new_corners.call(drag_corner);
-      corners
+        .attr("r", radius)
         .attr("cx", function(d) { return x(d[0]); })
         .attr("cy", function(d) { return y(d[1]); })
         .attr("visibility", (state.show_points) ? "visible" : "hidden");
-      corners.exit().remove();
       
+      if (!fixed && (new_corners.size() > 0 || defunct_corners.size() > 0)) {
+         corners.call(drag_corner);
+      }
+
       var edge_data = (state.close_path && state.points.length > 1) ?  state.points.concat([state.points[0]]) : state.points;
       var edges = edge_group.selectAll('.edge').data([edge_data]);  
       edges.enter().append("path")
