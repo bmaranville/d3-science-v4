@@ -87,6 +87,10 @@ text.axis-label tspan.sub, text.axis-label tspan.sup {
     -webkit-user-select: none; 
     -moz-user-select: none;
 }
+
+g.legend rect {
+  /*stroke-width: 2px;*/
+}
  
 .line {
     fill: none;
@@ -124,6 +128,15 @@ rect.zoom {
   stroke: steelblue;
   fill-opacity: 0.5;
 }
+
+path.hidden, g.hidden {
+  display: none;
+}
+
+g.legend rect.hidden {
+  fill-opacity: 0.1;
+}
+
 </style>
   <script src="//d3js.org/d3.v4.min.js" charset="utf-8"></script>
   <script src="//d3js.org/d3-dispatch.v1.js"></script>  
@@ -140,7 +153,15 @@ rect.zoom {
 <script>
 var rectangle;
 window.onload = function() {    
-  chart = xyChart.default({show_line: true, show_errorbars: true, ytransform: 'linear', legend: {show: true}})
+  chart = xyChart.default({
+    autoscale: true,
+    show_line: true,
+    show_errorbars: true,
+    ytransform: 'linear',
+    legend: {
+      show: true
+    }
+  });
   var opts1 = { 
       type:'Rectangle', 
       name:'roi_rectangle',
@@ -235,6 +256,8 @@ window.onload = function() {
   
   d3.json("sample_data/pbr_live_data.json", function(error, data) {
       mydata = data;
+      data[0].options["series"].push({"label": "Also"});
+      data[0].data.push([[]]);
       c = d3.select("#plot1")
         .data([data[0].data])
         .call(chart);
