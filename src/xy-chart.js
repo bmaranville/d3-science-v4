@@ -2,13 +2,17 @@ import * as d3 from 'd3';
 import {extend} from './jquery-extend';
 
 //var extend = jQuery.extend;
-export default xyChart;
+//export default xyChart;
 
-if (!d3.hasOwnProperty("id")) {
-  d3.id = (function(){var a = 0; return function(){return a++}})();
-}
+var generateID = (function() {
+  var id=0;
+  return function() { return id++ }
+})();
 
-function xyChart(options_override) {
+var xyChart;
+export {xyChart as default, generateID};
+
+xyChart = function(options_override) {
   var debug=false;
   var options_defaults = {
     margin: {top: 10, right: 10, bottom: 75, left: 100},
@@ -38,7 +42,7 @@ function xyChart(options_override) {
     
   var options = extend(true, {}, options_defaults, options_override); // copy
     
-  var id = d3.id();
+  var id = generateID();
   var interactors = [];
   
   this.options = options;
