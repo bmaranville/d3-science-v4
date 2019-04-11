@@ -28,7 +28,7 @@ embedded_template_example = {
       "x": 85,
       "y": 80,
       "module_def": {
-        "title": "my module",
+        "name": "my module",
         "fields": [
           {"id": "specular", "target": [0, "filelist"]},
           {"id": "detector_np", "target": [1, "nonparalyzing"]},

@@ -26,9 +26,6 @@
       fill-opacity: 0;
       cursor: move;
     }
-    svg polygon.slit {
-      cursor: move;
-    }
     
   </style>
 </head>
@@ -47,7 +44,7 @@
         speed = 0.25,
         wavelength = 5.0,
         k_0 = 2*Math.PI/wavelength,
-        max_angle = 5.0 * Math.PI/180.0, // 5 degree
+        max_angle = 2.0 * Math.PI/180.0, // 5 degree
         cx = 480,
         cy = yOffset;
         
@@ -82,7 +79,7 @@
           "cy": cy,
           "r": 400, // distance from center of rot.
           "angle": Math.PI,
-          "thickness": 8,
+          "thickness": 5,
           "blade_width": 75
         },
         {
@@ -92,7 +89,7 @@
           "cy": cy,
           "r": 125, // distance from center of rot.
           "angle": Math.PI,
-          "thickness": 8,
+          "thickness": 5,
           "blade_width": 75
         },
         {
@@ -102,7 +99,7 @@
           "cy": cy,
           "r": 125, // distance from center of rot.
           "angle": detector_def[0].angle,
-          "thickness": 8,
+          "thickness": 5,
           "blade_width": 75
         },
         {
@@ -112,7 +109,7 @@
           "cy": cy,
           "r": 400, // distance from center of rot.
           "angle": detector_def[0].angle,
-          "thickness": 8,
+          "thickness": 5,
           "blade_width": 75
         }
       ];
@@ -185,50 +182,14 @@
       }
       var render_slit_above = render_slit_blade(true);
       var render_slit_below = render_slit_blade(false);
-        
-      var sabove = slit.append("polygon")
+      
+      slit.append("polygon")
         .classed("above", true)
-        .classed("slit", true)
         .attr("points", render_slit_above)
         
-      var sbelow = slit.append("polygon")
+      slit.append("polygon")
         .classed("below", true)
-        .classed("slit", true)
         .attr("points", render_slit_below)
-      
-      var slits_bb = svg.selectAll("g.slit polygon").nodes().map(function(p) {return p.getBBox()});
-        
-      var drag_slit = d3.drag()
-        .on("drag", dragopen_slit)
-        .subject(function(d) {
-          var s = Math.sin(d.angle), 
-              c = Math.cos(d.angle),
-              x = d.cx + c * d.r,
-              y = d.cy + s * d.r;
-          return {x: x, y: y}
-        })
-        
-      
-      function dragopen_slit(d) {
-        var above = d3.select(this).classed("above");
-        var sign = (above) ? 1 : -1;
-        var s = Math.sin(d.angle), 
-            c = Math.cos(d.angle),
-            x = d.cx + c * d.r,
-            y = d.cy + s * d.r,
-            dxr = sign * s * d3.event.dx,
-            dyr = sign * c * d3.event.dy;
-        d.aperture += (dxr - dyr);
-        d.aperture = Math.max(d.aperture, 0);
-        svg.selectAll("g.slit polygon.above")
-          .attr("points", render_slit_above)
-        svg.selectAll("g.slit polygon.below")
-          .attr("points", render_slit_below)
-        slits_bb = svg.selectAll("g.slit polygon").nodes().map(function(p) {return p.getBBox()});
-      }
-      
-      sbelow.call(drag_slit);
-      sabove.call(drag_slit);
       
       function render_detector(d){
         var s = Math.sin(d.angle), 
@@ -258,6 +219,7 @@
           .attr("points", render_detector)
       
       var detector_bb = svg.selectAll("polygon.detector").nodes().map(function(p) {return p.getBBox()});
+      var slits_bb = svg.selectAll("g.slit polygon").nodes().map(function(p) {return p.getBBox()});
       
       var drag_detector = d3.drag()
         .on("drag", dragmove_detector)
@@ -507,8 +469,7 @@
       for (var i=0; i<number; i++) {
         var particle = {
           y_start: (Math.random() - 0.5)*apertureHeight + yOffset,
-          x_start: (Math.random() - 1) * speed * 5 * dt,
-          //x_start: (gauss() - 1.0) * speed * 20 * dt,
+          x_start: (gauss() - 1.0) * speed * 20 * dt,
           angle: (Math.random() - 0.5) * max_angle,
           speed: speed, //*(1.0 + 0.03*(Math.random() - 0.5)),
           t0: elapsed,

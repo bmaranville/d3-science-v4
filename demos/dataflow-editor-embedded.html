@@ -126,6 +126,7 @@ polygon.terminal.state {
 <body>
 <script src="https://d3js.org/d3.v4.min.js"></script>
 <script src="../lib/jquery-extend.js"></script>
+<script src="../lib/generate-id.js"></script>
 <!--<script src="dataflow-box-module.js"></script>-->
 <script src="../lib/dataflow-editor.js"></script>
 <script src="embedded_template_example.js"></script>
@@ -479,8 +480,7 @@ explode2 = function(module, current_template, callback) {
   
   var tr = d3.transition()
     .duration(d)
-    .ease(d3.easeCubicIn);
-    //.ease(d3.easeLinear);
+    .ease(d3.easeLinear);
     
   var transform = "scale(" + multiplier + ", " + multiplier + ")";
   outer_svg.transition(tr).attr("transform", transform).style("opacity", 0).on("end", function() { console.log("exploding!", this); d3.select(this).style("display", "none")});
@@ -588,7 +588,7 @@ unexplode2 = function(stored_template, stored_x, stored_y) {
   
   var tr = d3.transition()
     .duration(d)
-    .ease(d3.easeCubicOut);
+    .ease(d3.easeLinear);
   
   e.svg().transition(tr).attr("transform", "scale(1,1)").style("opacity", 1)
     .on("end", function() {e.import(to_restore.template)});
@@ -604,7 +604,7 @@ var module_defs = instruments[current_instrument].modules,
 d3.select("#new_module").selectAll("option").data(module_names)
   .enter().append('option')
   .attr("module", function(d) {return d}) // function(d) {return module_defs[d].module})
-  .text(function(d) {return module_defs[d].title})
+  .text(function(d) {return module_defs[d].name})  
   
 d3.select('#new_module').on("change", function(ev) {
     var title = this.value,
