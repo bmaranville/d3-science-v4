@@ -1,0 +1,37 @@
+{
+  "name": "d3-science",
+  "version": "0.1.1",
+  "description": "plotting routines based on d3, for scientific data",
+  "main": "src/index.js",
+  "module": "src/index.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "dependencies": {
+    "babel-esnext": "^0.2.3",
+    "babel-preset-env": "^1.6.0",
+    "d3": "^4.10.2",
+    "d3-selection": "^1.1.0",
+    "jsdom": "^11.2.0",
+    "puppeteer": "^0.9.0",
+    "xmldom": "^0.1.27"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bmaranville/d3-science-v4.git"
+  },
+  "keywords": [
+    "science",
+    "data"
+  ],
+  "author": "Brian B. Maranville",
+  "license": "SEE LICENSE IN LICENSE.txt",
+  "bugs": {
+    "url": "https://github.com/bmaranville/d3-science-v4/issues"
+  },
+  "homepage": "https://github.com/bmaranville/d3-science-v4#readme"
+}
