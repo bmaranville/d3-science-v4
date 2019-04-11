@@ -2,7 +2,7 @@
   "name": "d3-science",
   "version": "0.1.1",
   "description": "plotting routines based on d3, for scientific data",
-  "main": "src/index.js",
+  "main": "lib/index.js",
   "module": "src/index.js",
   "directories": {
     "lib": "lib"
@@ -16,9 +16,12 @@
     "puppeteer": "^0.9.0",
     "xmldom": "^0.1.27"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "babel-cli": "^6.26.0"
+  },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "babel-cli --preset es2015"
   },
   "repository": {
     "type": "git",
