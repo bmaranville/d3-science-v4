@@ -1,6 +1,5 @@
 "use strict";
-import * as d3 from 'd3';
-import {event as currentEvent} from 'd3';
+import {default as d3} from '//dev.jspm.io/d3@5';
 
 export default crosshairInteractor;
 
@@ -87,11 +86,11 @@ function crosshairInteractor(state, x, y) {
   
   var drag_center = d3.drag()
     .on("drag", dragmove_center)
-    .on("start", function() { currentEvent.sourceEvent.stopPropagation(); });  
+    .on("start", function() { d3.event.sourceEvent.stopPropagation(); });  
     
   var drag_lines = d3.drag()
     .on("drag", dragmove_lines)
-    .on("start", function() { currentEvent.sourceEvent.stopPropagation(); });
+    .on("start", function() { d3.event.sourceEvent.stopPropagation(); });
   
 
   function interactor(selection) {
@@ -141,18 +140,18 @@ function crosshairInteractor(state, x, y) {
   }
   
   function dragmove_center() {
-    state.cx = x.invert(x(state.cx) + currentEvent.dx);
-    state.cy = y.invert(y(state.cy) + currentEvent.dy);
+    state.cx = x.invert(x(state.cx) + d3.event.dx);
+    state.cy = y.invert(y(state.cy) + d3.event.dy);
     interactor.update();
   }
   
   
   function dragmove_lines() {
     if (d3.select(this).classed("vertical")) {
-      state.cx = x.invert(x(state.cx) + currentEvent.dx);
+      state.cx = x.invert(x(state.cx) + d3.event.dx);
     }
     else if (d3.select(this).classed("horizontal")) {
-        state.cy = y.invert(y(state.cy) + currentEvent.dy);
+        state.cy = y.invert(y(state.cy) + d3.event.dy);
     }
     interactor.update();
   }

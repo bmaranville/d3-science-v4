@@ -1,5 +1,5 @@
 "use strict";
-import * as d3 from 'd3';
+import {default as d3} from '//dev.jspm.io/d3@5';
 
 export default polygonInteractor;
 

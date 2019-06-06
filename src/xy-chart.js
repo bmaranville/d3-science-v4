@@ -1,4 +1,4 @@
-import * as d3 from 'd3';
+import {default as d3} from '//dev.jspm.io/d3@5';
 import {extend} from './jquery-extend';
 import {generateID} from './generate-id';
 
@@ -38,7 +38,6 @@ function xyChart(options_override) {
   var id = generateID();
   var interactors = [];
   
-  this.options = options;
   var max_y = (options.max_y == null) ? -Infinity : options.max_y;
   var min_y = (options.min_y == null) ? Infinity : options.min_y;
   var max_x = (options.max_x == null) ? -Infinity : options.max_x;

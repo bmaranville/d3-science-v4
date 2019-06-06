@@ -59,16 +59,13 @@ canvas {
 }
 
 </style>
-  <script src="//d3js.org/d3.v4.min.js" charset="utf-8"></script>
-  <script src="../lib/jquery-extend.js"></script>
-  <script src="../lib/generate-id.js"></script>
-  <script src="../lib/heat-chart.js" charset="utf-8">></script>
-  <script src="../lib/colormap.js" charset="utf-8">></script>
-
 </head>
 <body>
 <!--<script src="d3.v3.min.js"></script>-->
-<script>
+<script type="module">
+import {default as d3} from '//dev.jspm.io/d3@5';
+import {default as heatChart} from '../src/heat-chart.js';
+import * as colormap from '../src/colormap.js';
 window.onload = function() {
 
   var dispatch = d3.dispatch("update_main", "update_colorbar");
@@ -82,13 +79,13 @@ window.onload = function() {
   
   colormap_select.value = "jet"; // default
   
-  chart = heatChart.default({ztransform: 'log', margin: {"bottom": 75}, source_order: "F"})
+  var chart = heatChart({ztransform: 'log', margin: {"bottom": 75}, source_order: "F"})
     .autoscale(true)
     .xlabel("Qx (\u212B\u207B\u00B9)")
     .ylabel("Qz (\u212B\u207B\u00B9)");
     
 
-  d3.json("sample_data/512.json", function(error, heatmap) {
+  d3.json("sample_data/512.json").then(function(heatmap) {
       //mydata = heatmap;
       var data_rolled = heatmap;
       var ydim = heatmap.length;

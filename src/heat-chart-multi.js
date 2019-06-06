@@ -1,6 +1,5 @@
 "use strict";
-import * as d3 from 'd3';
-import {event as currentEvent} from 'd3';
+import {default as d3} from '//dev.jspm.io/d3@5';
 import {type, extend} from './jquery-extend';
 import {generateID} from './generate-id';
 
