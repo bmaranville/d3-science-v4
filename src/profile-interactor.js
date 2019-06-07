@@ -1,6 +1,6 @@
 "use strict";
-import * as d3 from 'd3';
-import {extend} from './jquery-extend';
+// requires global d3 object
+import {extend} from './jquery-extend.js';
 
 export default profileInteractor;
 

@@ -1,6 +1,5 @@
 "use strict";
-import * as d3 from 'd3';
-//import {event as currentEvent} from 'd3';
+// requires global d3 object
 
 export default xSliceInteractor;
 

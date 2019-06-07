@@ -1,6 +1,6 @@
-import * as d3 from 'd3';
-import {extend} from './jquery-extend';
-import {generateID} from './generate-id';
+// requires global d3 object
+import {extend} from './jquery-extend.js';
+import {generateID} from './generate-id.js';
 
 //var extend = jQuery.extend;
 export default xyChart;

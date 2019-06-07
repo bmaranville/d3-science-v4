@@ -1,4 +1,4 @@
-import * as d3 from 'd3';
+// requires global d3 object
 
 export default rectangleSelect;
 
