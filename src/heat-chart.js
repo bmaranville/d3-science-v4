@@ -1,7 +1,7 @@
 "use strict";
 import {default as d3} from '//dev.jspm.io/d3@5';
-import {type, extend} from './jquery-extend';
-import {generateID} from './generate-id';
+import {type, extend} from './jquery-extend.js';
+import {generateID} from './generate-id.js';
 
 export default function heatChart(options_override) {
   var debug=false;

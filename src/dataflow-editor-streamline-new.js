@@ -28,8 +28,8 @@
 'use strict';
 
 import {default as d3} from '//dev.jspm.io/d3@5';
-import {extend} from './jquery-extend';
-import {generateID} from './generate-id';
+import {extend} from './jquery-extend.js';
+import {generateID} from './generate-id.js';
 
 export {editor};
 export default editor;
