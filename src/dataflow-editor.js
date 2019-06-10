@@ -25,16 +25,15 @@
 // 
 
 /* requires('d3.js'); */
-'use strict';
 
-import {default as d3} from '//dev.jspm.io/d3@5';
 import {extend} from './jquery-extend.js';
 import {generateID} from './generate-id.js';
 
 export {editor};
 export default editor;
 
-function editor(options) {
+function editor(options, d3_import = null) {
+  var d3 = (d3_import != null) ? d3_import : window.d3;
   var module_defs = {};
   var default_options = {
     padding: 5,

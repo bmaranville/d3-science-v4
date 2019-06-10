@@ -1,10 +1,9 @@
-"use strict";
-import {default as d3} from '//dev.jspm.io/d3@5';
 import {extend} from './jquery-extend.js';
 
 export default profileInteractor;
 
-function profileInteractor(state, x, y) {
+function profileInteractor(state, x, y, d3_import = null) {
+  var d3 = (d3_import != null) ? d3_import : window.d3;
   // x, y are d3.scale objects (linear, log, etc) from parent
   // dispatch is the d3 event dispatcher: should have event "update" register
   //var state = options;

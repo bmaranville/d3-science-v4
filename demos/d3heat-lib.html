@@ -66,6 +66,7 @@ canvas {
 import {default as d3} from '//dev.jspm.io/d3@5';
 import {default as heatChart} from '../src/heat-chart.js';
 import * as colormap from '../src/colormap.js';
+window.colormap = colormap;
 window.onload = function() {
 
   var dispatch = d3.dispatch("update_main", "update_colorbar");
@@ -79,11 +80,12 @@ window.onload = function() {
   
   colormap_select.value = "jet"; // default
   
-  var chart = heatChart({ztransform: 'log', margin: {"bottom": 75}, source_order: "F"})
+  var chart = heatChart({ztransform: 'log', margin: {"bottom": 75}, source_order: "F"}, d3)
     .autoscale(true)
     .xlabel("Qx (\u212B\u207B\u00B9)")
     .ylabel("Qz (\u212B\u207B\u00B9)");
-    
+  
+  window.chart = chart;
 
   d3.json("sample_data/512.json").then(function(heatmap) {
       //mydata = heatmap;
@@ -99,7 +101,7 @@ window.onload = function() {
       }
       chart.dims({xdim: xdim, ydim: ydim});
         
-      c = d3.select("#plot1")
+      var c = d3.select("#plot1")
         .data([unrolled])
         .call(chart);
   });

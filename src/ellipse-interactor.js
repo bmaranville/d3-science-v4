@@ -1,9 +1,7 @@
-"use strict";
-import {default as d3} from '//dev.jspm.io/d3@5';
-
 export default ellipseInteractor;
 
-function ellipseInteractor(state, x, y) {
+function ellipseInteractor(state, x, y, d3_import = null) {
+  var d3 = (d3_import != null) ? d3_import : window.d3;
   // dispatch is the d3 event dispatcher: should have event "update" register
   // state: {cx: ..., cy: ..., rx: ..., ry: ...}
   // if dragging the ellipse itself, the eccentricity (ry/rx) is preserved
