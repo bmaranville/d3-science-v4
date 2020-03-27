@@ -1,12 +1,9 @@
 import * as d3 from 'd3';
 import {extend} from './jquery-extend';
+import {generateID} from './generate-id';
 
 //var extend = jQuery.extend;
 export default xyChart;
-
-if (!d3.hasOwnProperty("id")) {
-  d3.id = (function(){var a = 0; return function(){return a++}})();
-}
 
 function xyChart(options_override) {
   var debug=false;
@@ -38,7 +35,7 @@ function xyChart(options_override) {
     
   var options = extend(true, {}, options_defaults, options_override); // copy
     
-  var id = d3.id();
+  var id = generateID();
   var interactors = [];
   
   this.options = options;
@@ -353,8 +350,8 @@ function xyChart(options_override) {
       chart.resetzoom(); // set to 10% zoom out.
 	
       chart.draw_lines(data);
-      chart.draw_points(data);
       chart.draw_errorbars(data);
+      chart.draw_points(data);
       chart.draw_legend(data);
 	  
       //************************************************************
@@ -442,19 +439,21 @@ function xyChart(options_override) {
     chart.draw_legend = function(data) {
       if (!options.legend.show) { return }
       var el = chart.svg.select("g.legend");
-      var update_sel = el.selectAll('g').data(data);
+      // if there are more options.series defined than datasets, 
+      // use the extra series:
+      var ldata = d3.range(Math.max(data.length, (options.series || []).length));
+      var update_sel = el.selectAll('g').data(ldata);
       update_sel
         .enter()
           .append('g')
           .each(function(d, i) {
             var g = d3.select(this);
             g.append("rect")
-              .attr("x", -options.legend.left)
-              .attr("y", i*25 + 15)
-              .attr("width", 10)
-              .attr("height", 10)
-              .style("fill", get_series_color(null, i))
-              .style("cursor", "move")
+              .attr("x", legend_offset.x)
+              .attr("y", i*25 + 10)
+              .attr("width", 14)
+              .attr("height", 14)
+              .style("cursor", "pointer")
               .on("mouseover", function() {
                 chart.svg.selectAll('path.line')
                   .classed('highlight', function(d,ii) {return ii == i})
@@ -465,16 +464,31 @@ function xyChart(options_override) {
                   .classed('highlight', false)
                   .classed('unhighlight', false);
               })
-              .call(drag_legend);
+              .on("click", function() {
+                let hidden = d3.select(this).classed("hidden");
+                // toggle:
+                hidden = !hidden;
+                d3.select(this).classed('hidden', hidden);
+                chart.svg.selectAll('path.line')
+                  .filter(function(d,ii) { return ii == i })
+                  .classed('hidden', hidden);
+                chart.svg.selectAll('g.series')
+                  .filter(function(d,ii) { return ii == i })
+                  .classed('hidden', hidden);
+                chart.svg.selectAll('g.errorbars')
+                  .filter(function(d,ii) { return ii == i })
+                  .classed('hidden', hidden);
+              })
+              .append("title").text("click to hide/unhide")
+              //.call(drag_legend);
             
             g.append("text")
-              .attr("x", 15-options.legend.left)
+              .attr("x", 18 + legend_offset.x)
               .attr("y", i * 25 + 25)
               .attr("height",30)
               .attr("width",100)
               .style("text-anchor", "start")
               .style("cursor", "move")
-              .style("fill", get_series_color(null, i))
               .on("mouseover", function() {
                 chart.svg.selectAll('path.line')
                   .classed('highlight', function(d,ii) {return ii == i})
@@ -489,13 +503,15 @@ function xyChart(options_override) {
 
           });
       update_sel.exit().remove();
+      update_sel.style("fill", get_series_color);
       
       el.selectAll("rect")
         .attr("x", legend_offset.x)
-        .attr("y", function(d,i) {return i*25 + 15 + legend_offset.y});
+        .attr("y", function(d,i) {return i*25 + 12 + legend_offset.y})
+        .style("stroke", get_series_color);
 
       el.selectAll("text")
-        .attr("x", 15 + legend_offset.x)
+        .attr("x", 18 + legend_offset.x)
         .attr("y", function(d,i) { return i * 25 + 25 + legend_offset.y})
         .each(function(d, i) {
           d3.select(this).text((options.series[i] && options.series[i].label != null) ? options.series[i].label : i+1)
@@ -516,12 +532,12 @@ function xyChart(options_override) {
       update_sel
         .enter()
           .append("path")
-          .attr("class", "line")
-          .attr('stroke', get_series_color);
+          .attr("class", "line");
       update_sel.exit().remove();
       
       chart.g.selectAll('path.line')
-        .attr("d", line);
+        .attr("d", line)
+        .attr('stroke', get_series_color);
     }      
     
     //************************************************************
@@ -532,9 +548,9 @@ function xyChart(options_override) {
         .data(filterShowOption('show_points', data))
       series_sel
         .enter().append("g")
-          .attr("class", "series")
-          .style("fill", get_series_color);
+          .attr("class", "series");
       series_sel.exit().remove();
+      series_sel.style("fill", get_series_color);
       
       var update_sel = chart.g.selectAll("g.series").selectAll(".dot")
           .data(function(d) { return d; });
@@ -567,9 +583,9 @@ function xyChart(options_override) {
       series_sel
        .enter().append("g")
           .classed("errorbars", true)
-          .style("stroke", get_series_color)
-          .style("stroke-width", "1.5px")
+          .style("stroke-width", "1.5px");
       series_sel.exit().remove();
+      series_sel.style("stroke", get_series_color);
       
       var update_sel = chart.g.selectAll(".errorbars").selectAll(".errorbar")
           .data(function(d,i) { return d; })
@@ -598,8 +614,8 @@ function xyChart(options_override) {
       svg.selectAll("rect.zoom").remove();
 
       chart.draw_lines(source_data);
-      chart.draw_points(source_data);
       chart.draw_errorbars(source_data);
+      chart.draw_points(source_data);
       chart.draw_legend(source_data);
       
       chart.interactors().forEach(function(d,i) { if (d.update) {d.update();}});
@@ -626,6 +642,7 @@ function xyChart(options_override) {
       // otherwise grab from the default colors list:
       return (options.series[i] || {}).color || colors[i % colors.length];
     }
+    chart.get_series_color = function(i) { return get_series_color(null, i) }
     
     function errorbar_generator(d) {
       var errorbar_width = options.errorbar_width;

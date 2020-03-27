@@ -1,81 +1,94 @@
-//"use strict";
+"use strict";
+import * as d3 from 'd3';
+import {event as currentEvent} from 'd3';
+import {type, extend} from './jquery-extend';
+import {generateID} from './generate-id';
 
-if (!d3.hasOwnProperty("id")) {
-  d3.id = (function(){var a = 0; return function(){return a++}})();
-}
-
-function heatChart(options_override) {
+export default function heatChartMulti(options_override) {
   var debug=false;
   var options_defaults = {
     margin: {top: 10, right: 10, bottom: 50, left: 50},
     cb_margin: {top: 10, right: 50, bottom: 50, left: 10},
     show_grid: true,
     show_colorbar: true,
+    source_order: "C",
     position_cursor: true,
     colorbar_width: 120,
     numberOfTicks: 4,
     aspect_ratio: null,
     autoscale: false,
-    xlabel: "x-axis",
-    ylabel: "y-axis",
-    zlabel: "z-axis",
-    ztransform: "linear", 
-    dims: {
-      xmin: 0,
-      xmax: 1,
-      ymin: 0, 
-      ymax: 1,
-      zmin: 1.0,
-      zmax: 100.0
-    }
+    axes: {
+      xaxis: {label: "x-axis"},
+      yaxis: {label: "y-axis"},
+      zaxis: {label: "z-axis"}
+    },
+    ztransform: "linear",
+    zmin: 1,
+    zmax: 2
   }
-  var options = jQuery.extend(true, {}, options_defaults); // copy
-  jQuery.extend(true, options, options_override); // process any overrides from creation;
+  var options = extend(true, {}, options_defaults); // copy
+  extend(true, options, options_override); // process any overrides from creation;
   
   //var zoomRect = false;
   var zoomScroll = false;
   var interactors = [];
-  var plotdata, source_data;
-  var z = d3.scale[options.ztransform]();
+  var plotdatas = [];
+  var source_data = [];
+  var z = getScale(options.ztransform);
     
   var dims = options.dims;
   // create working copy of zmax and zmin, for zooming colorbar
   var zdims = {}
-  var id = d3.id();
+  var id = generateID();
   
-  var x = d3.scale.linear();
-  var y = d3.scale.linear();
-  var xAxis = d3.svg.axis();
-  var yAxis = d3.svg.axis();
-  var zAxis = d3.svg.axis();
-  var xAxisGrid = d3.svg.axis();
-  var yAxisGrid = d3.svg.axis();
+  var x = d3.scaleLinear();
+  var y = d3.scaleLinear();
+  var orig_x, orig_y, orig_z;
+  var xAxis = d3.axisBottom(x);
+  var yAxis = d3.axisLeft(y);
+  var zAxis = d3.axisRight(z);
+  var xAxisGrid = d3.axisBottom(x);
+  var yAxisGrid = d3.axisLeft(y);
   var colormap = jet_colormap;  
   
   var zoomed = function() {
+    //console.log(d3.event.transform);
+    if (d3.event && d3.event.transform) {
+      // emulating old zoom behavior:
+      var new_x = d3.event.transform.rescaleX(orig_x),
+          new_y = d3.event.transform.rescaleY(orig_y);
+      
+      x.domain(new_x.domain());
+      y.domain(new_y.domain());
+    }
     _redraw_main = true;
   }
-  var zoom = d3.behavior.zoom().on("zoom.heatmap", zoomed);
+  var zoom = d3.zoom().on("zoom.heatmap", zoomed);
   var resetzoom = function() {
-    zoom.translate([0,0]).scale(1);
-    zoomed.call(this);
+    var zoombox = chart.mainview.select("rect.zoom.box");
+    zoombox.call(zoom.transform, d3.zoomIdentity);
   }
   
   var cb_zoomed = function() {
     var svg = d3.select(this);
+    if (d3.event && d3.event.transform) {
+      // emulating old zoom behavior:
+      var new_z = d3.event.transform.rescaleY(orig_z);
+      z.domain(new_z.domain());
+    }
+    zdims.zmax = Math.max.apply(Math, z.domain());
+    zdims.zmin = Math.min.apply(Math, z.domain());
     svg.select(".z.axis").call(zAxis);
-	  zdims.zmax = Math.max.apply(Math, z.domain());
-	  zdims.zmin = Math.min.apply(Math, z.domain());
-	  _recalculate_main = true;
-	  //chart.redrawImage();
+    _recalculate_main = true;
+    _redraw_colorbar = true;
+    //chart.redrawImage();
   }
-  var cb_zoom = d3.behavior.zoom()
+  var cb_zoom = d3.zoom()
     .on("zoom.colorbar", null)
     .on("zoom.colorbar", cb_zoomed);
     
   var cb_resetzoom = function() {
-    cb_zoom.translate([0,0]).scale(1);
-    cb_zoomed.call(this);
+    chart.colorbar.svg.call(cb_zoom.transform, d3.zoomIdentity);
   }
   
   //var dispatch = d3.dispatch("update", "redrawImage");
@@ -85,8 +98,8 @@ function heatChart(options_override) {
   //});
   
   // some private working variables
-  var backing_canvas = document.createElement('canvas');
-  var backing_image;
+  var backing_canvases; //  = [document.createElement('canvas');
+  var backing_images = [];
   var colorbar_backing_canvas = document.createElement('canvas');
   var _recalculate_main = false;
   var _redraw_main = false;
@@ -96,7 +109,7 @@ function heatChart(options_override) {
 
   function chart(selection) {
     selection.each(function(data) {
-      var offset_right = (options.show_colorbar) ? options.colorbar_width + 5 : 0;
+      var offset_right = (options.show_colorbar) ? options.colorbar_width + 20 : 0;
       var outercontainer = d3.select(this),
         innerwidth = outercontainer.node().clientWidth - offset_right,
         innerheight = outercontainer.node().clientHeight,
@@ -104,14 +117,22 @@ function heatChart(options_override) {
         height = innerheight - options.margin.top - options.margin.bottom;
       chart.outercontainer = outercontainer;
       source_data = data;
+      backing_canvases = source_data.map(function() { return document.createElement('canvas') });
       //chart.update = function() { outercontainer.transition().call(chart); chart.colorbar.update(); };   
       if (options.autoscale) {
-        var new_min_max = get_min_max(data, z);
-        zdims.zmin = new_min_max.min;
-        zdims.zmax = new_min_max.max;
+        var zmin = +Infinity;
+        var zmax = -Infinity;
+    
+        source_data.forEach(function (sd) {
+          var new_min_max = get_min_max(sd.data, z);
+          zmin = Math.min(zmin, new_min_max.min);
+          zmax = Math.max(zmax, new_min_max.max);
+        })
+        zdims.zmin = zmin;
+        zdims.zmax = zmax;
       } else {
-        zdims.zmin = dims.zmin;
-        zdims.zmax = dims.zmax;
+        zdims.zmin = options.zmin;
+        zdims.zmax = options.zmax;
       }
       
       
@@ -129,12 +150,16 @@ function heatChart(options_override) {
       
       z
         .domain([zdims.zmin, zdims.zmax])
-          
-      make_plotdata();
+      
+      // store these for later use.    
+      orig_x = x.copy();
+      orig_y = y.copy();
+      orig_z = z.copy();
+      
+      make_all_plotdata();
       
       xAxisGrid
         .scale(x)
-        .orient("bottom")
         .ticks(options.numberOfTicks)
         .tickPadding(10)
         .tickSize(-height, 0, 0)
@@ -144,142 +169,105 @@ function heatChart(options_override) {
         .scale(y)
         .ticks(options.numberOfTicks)
         .tickPadding(10)	
-        .tickSubdivide(true)	
-        .orient("left")
         .tickSize(-width, 0, 0)
-        .tickFormat("")
+        .tickFormat("");
       
       xAxis
         .scale(x)
         .ticks(options.numberOfTicks)
-        .tickPadding(10)	
-        .tickSubdivide(true)	
-        .orient("bottom");
-      
+        .tickPadding(10);
+                      
       yAxis
         .scale(y)
         .ticks(options.numberOfTicks)
-        .tickPadding(10)	
-        .tickSubdivide(true)	
-        .orient("left");
-        
-        
-      // we will bind data to the container div, a slightly non-standard
-      // arrangement.
-      var container = d3.select(this).selectAll("div.heatmap-container").data([0]);
+        .tickPadding(10);        
       
-      zoom.x(x).y(y);
-      
-      // if inner container doesn't exist, build it.
-      container.enter().append("div")
+      var container = outercontainer.append("div")
         .attr("class", "heatmap-container")
         .attr("width", innerwidth)
         .attr("height", innerheight)
         .style("display", "inline-block")
+        .style("position", "relative")
         .style("width", innerwidth + "px")
         .style("height", innerheight + "px");
-        
-      var mainCanvas = container.selectAll("canvas.mainplot").data([0]);
-      mainCanvas.enter().append("canvas");
+      
+      var mainCanvas = container.append("canvas");
       mainCanvas
           .attr("width", width)
           .attr("height", height)
           .attr("class", "mainplot")
+          .style("position", "absolute")
+          .style("left", options.margin.left + "px")
+          .style("top", options.margin.top + "px")
           .style("width", width + "px")
           .style("height", height + "px")
-          .style("padding-left", options.margin.left + "px")
-          .style("padding-right", options.margin.right + "px")
-          .style("padding-top", options.margin.top + "px")
-          .call(drawImage);
+          
+      mainCanvas.call(drawImages);
                 
       chart.mainCanvas = mainCanvas;
       
-      var svg = container.selectAll("svg.mainplot").data([0]);
-      var esvg = svg.enter()
+      var svg = container
         .append("svg")
-          .attr("class", "mainplot")
+        .attr("width", width + options.margin.left + options.margin.right)
+        .attr("height", height + options.margin.top + options.margin.bottom)
+        .attr("class", "mainplot")
+        
+      var mainview = svg
+        .append("g")
+          .attr("class", "mainview")
+          .attr("width", width)
+          .attr("height", height)
+          .attr("transform", "translate(" + options.margin.left + "," + options.margin.top + ")")
           .on("dblclick.resetzoom", resetzoom);
-      esvg.append("g")
+                
+      mainview.append("g")
         .attr("class", "x axis")
         .append("text")
-        .attr("class", "x axis-label")
-        .attr("x", width/2.0)
-        .attr("text-anchor", "middle")
-        .attr("y", 35)
-      esvg.append("g")
-	      .attr("class", "y axis")
-	      .append("text")
-	      .attr("class", "y axis-label")
-	      .attr("text-anchor", "middle")
-	      .attr("transform", "rotate(-90)")
-	      .attr("y", -35 )
-	      .attr("x", -height/2)
-	    
-      esvg.append("g")
-        .attr("class", "x grid");           
-      esvg.append("g")
+          .attr("class", "x axis-label")
+          .attr("x", width/2.0)
+          .attr("text-anchor", "middle")
+          .attr("y", options.margin.bottom - 5)
+      mainview.append("g")
+        .attr("class", "y axis")
+        .append("text")
+          .attr("class", "y axis-label")
+          .attr("text-anchor", "middle")
+          .attr("transform", "rotate(-90)")
+          .attr("y", -options.margin.left + 15 )
+          .attr("x", -height/2)
+      
+      mainview.append("g")
+        .attr("class", "x grid")
+        //.attr("transform", "translate(0," + height + ")");         
+      mainview.append("g")
         .attr("class", "y grid");
-      esvg.append("g")
-        .attr("class", "y interactors")
-      var mainview = esvg.append("g")
-        .attr("class", "mainview")
-        .attr("transform", "translate(" + options.margin.left + "," + options.margin.top + ")");  
       
-      svg.select(".x.axis").call(xAxis);
-      svg.select(".y.axis").call(yAxis);
-      svg.select(".x.grid").call(xAxisGrid);
-      svg.select(".y.grid").call(yAxisGrid);
-      svg.select(".x.axis-label").text(options.xlabel);
-      svg.select(".y.axis-label").text(options.ylabel);
+      mainview.append("rect")
+        .attr("class", "zoom box")
+        .attr("width", width)
+        .attr("height", height)
+        .style("visibility", "hidden")
+        .attr("pointer-events", "all")
+        
+      mainview.append("g")
+        .attr("class", "interactor-layer")
       
-      svg.attr("width", width + options.margin.left + options.margin.right)
-          .attr("height", height + options.margin.top + options.margin.bottom);
-                
-      svg.selectAll("g.x")
-        .attr("transform", "translate(" + options.margin.left + "," + (height + options.margin.top) + ")");
-      svg.selectAll("g.y")
-        .attr("transform", "translate(" + options.margin.left + "," + options.margin.top + ")"); 
+      mainview.select(".x.axis").call(xAxis);
+      mainview.select(".y.axis").call(yAxis);
+      mainview.select(".x.grid").call(xAxisGrid);
+      mainview.select(".y.grid").call(yAxisGrid);
+      // remove added attr that blocks styling:
+      mainview.select(".x.axis-label").html(((options.axes || {}).xaxis || {}).label || "x-axis");
+      mainview.select(".y.axis-label").html(((options.axes || {}).yaxis || {}).label || "y-axis");
+      mainview.selectAll(".grid .tick line").attr("stroke", null);
+      
+      mainview.selectAll("g.x")
+        .attr("transform", "translate(0," + height + ")");
         
       chart.svg = svg;
-      //svg.call(zoom); // moved to zoomScroll function
+      chart.mainview = mainview;
       
-      //************************************************************
-      // Position cursor (shows position of mouse in data coords)
-      //************************************************************
-      if (options.position_cursor) {
-        var position_cursor = mainview.selectAll(".position-cursor")
-          .data([0])
-        position_cursor
-          .enter().append("text")
-            .attr("class", "position-cursor")
-            .attr("x", width - 10)
-            .attr("y", height + options.margin.bottom)
-            .style("text-anchor", "end");
-          
-        var follow = function (){  
-          if (source_data == null || source_data[0] == null) { return }
-          var mouse = d3.mouse(mainview.node());
-          var x_coord = x.invert(mouse[0]),
-              y_coord = y.invert(mouse[1]),
-              xdim = source_data[0].length,
-              ydim = source_data.length;
-          var x_bin = Math.floor((x_coord - dims.xmin) / (dims.xmax - dims.xmin) * xdim),
-              y_bin = Math.floor((y_coord - dims.ymin) / (dims.ymax - dims.ymin) * ydim);
-          var z_coord = (x_bin >= 0 && x_bin < xdim && y_bin >= 0 && y_bin < ydim) ? source_data[y_bin][x_bin] : NaN;
-          position_cursor.text(
-            x_coord.toPrecision(5) + 
-            ", " + 
-            y_coord.toPrecision(5) + 
-            ", " + 
-            z_coord.toPrecision(5));
-        }
-          
-          esvg
-            .on("mousemove.position_cursor", null)
-            .on("mouseover.position_cursor", null)
-            .on("mousemove.position_cursor", follow)
-            .on("mouseover.position_cursor", follow);
-      }
+      chart.position_cursor(options.position_cursor);
     });
     selection.call(chart.colorbar);
   }
@@ -298,24 +286,19 @@ function heatChart(options_override) {
       
       // update the z axis
       z.range([height, 0]);
+      orig_z = z.copy();
         
       zAxis
         .scale(z)
         .ticks(options.numberOfTicks)
-        .tickPadding(10)	
-        .tickSubdivide(true)	
-        .orient("right");
-        
-      // we will bind data to the container div, a slightly non-standard
-      // arrangement.
-      var container = d3.select(this).selectAll("div.colorbar-container").data([0]);
+        .tickPadding(10);
      
-      cb_zoom.y(z);
       chart.colorbar.resetzoom = cb_resetzoom;
       chart.colorbar.zoom = cb_zoom;
       
       // if inner container doesn't exist, build it.
-      container.enter().append("div")
+      var colorbarCanvas;
+      var container = outercontainer.append("div")
         .attr("class", "colorbar-container")
         .attr("width", innerwidth)
         .attr("height", innerheight)
@@ -323,35 +306,34 @@ function heatChart(options_override) {
         .style("width", innerwidth + "px")
         .style("height", innerheight + "px");
         
-      var colorbarCanvas = container.selectAll("canvas.colorbar").data([0]);
-      colorbarCanvas.enter().append("canvas");
-      colorbarCanvas
-          .attr("width", width)
-          .attr("height", height)
-          .attr("class", "colorbar")
-          .style("width", width + "px")
-          .style("height", height + "px")
-          .style("padding-left", offset_left + "px")
-          .style("padding-right", options.cb_margin.right + "px")
-          .style("padding-top", options.cb_margin.top + "px")
-          .call(drawScale);
+      var colorbarCanvas = container.append("canvas")
+        .attr("width", width)
+        .attr("height", height)
+        .attr("class", "colorbar")
+        .style("width", width + "px")
+        .style("height", height + "px")
+        .style("padding-left", offset_left + "px")
+        .style("padding-right", options.cb_margin.right + "px")
+        .style("padding-top", options.cb_margin.top + "px")
+
+      colorbarCanvas.call(drawScale);
                 
       chart.colorbar.colorbarCanvas = colorbarCanvas;
       
-      var svg = container.selectAll("svg.colorbar").data([0]);
-      var esvg = svg.enter()
+      var svg = container
         .append("svg")
           .attr("class", "colorbar")
           .call(cb_zoom)
           .on("dblclick.zoom", null)
           .on("dblclick.resetzoom", null)
           .on("dblclick.resetzoom", cb_resetzoom);
-      esvg.append("g")
+
+      svg.append("g")
           .attr("class", "z axis");
     
       svg.select(".z.axis").call(zAxis);
       
-      svg.attr("width", width + options.cb_margin.left + options.cb_margin.right)
+      svg.attr("width", width + options.cb_margin.right)
           .attr("height", height + options.cb_margin.top + options.cb_margin.bottom);
       
       svg.selectAll("g.z")
@@ -360,7 +342,8 @@ function heatChart(options_override) {
       chart.colorbar.svg = svg;
     });
   }
-  chart.colorbar.update = function() { this.outercontainer.call(chart.colorbar); };   
+
+  chart.colorbar.update = function() { chart.colorbar.colorbarCanvas.call(drawScale); _redraw_colorbar = true; };   
   
   chart.colormap=function(_) {
     if (!arguments.length) return colormap;
@@ -383,30 +366,34 @@ function heatChart(options_override) {
   
   chart.redrawImage = function() {
     _redraw_backing = true;
-    make_plotdata(this.source_data, dims, zdims, z);
-    drawImage(this.mainCanvas);
+    make_all_plotdata();
+    drawImages(this.mainCanvas);
     return chart;
   };
   
   chart.redrawLoop = function() {
     if (_recalculate_main == true) {
       _recalculate_main = false;
-      make_plotdata();
+      make_all_plotdata();
       _redraw_backing = true;
       _redraw_main = true;
       //drawImage(chart.mainCanvas) //, plotdata);
     }
     if (_redraw_main == true) {
       _redraw_main = false;
-      var svg = chart.svg;
+      var mainview = chart.mainview;
       var canvas = chart.mainCanvas;
       var container = chart.outercontainer;
-      svg.select(".x.axis").call(xAxis);
-      svg.select(".y.axis").call(yAxis);
-      svg.select(".grid.x").call(xAxisGrid);
-      svg.select(".grid.y").call(yAxisGrid);
+      mainview.select(".x.axis").call(xAxis);
+      mainview.select(".y.axis").call(yAxis);
+      mainview.select(".x.axis .x.axis-label").html(options.axes.xaxis.label);
+      mainview.select(".y.axis .y.axis-label").html(options.axes.yaxis.label);
+      mainview.select(".grid.x").call(xAxisGrid);
+      mainview.select(".grid.y").call(yAxisGrid);
+      // remove added attr that blocks styling:
+      mainview.selectAll(".grid .tick line").attr("stroke", null);
 
-      chart.mainCanvas.call(drawImage);
+      chart.mainCanvas.call(drawImages);
       
       chart.interactors().forEach(function(d,i) { if (d.update) {d.update();}});
     }
@@ -414,6 +401,8 @@ function heatChart(options_override) {
   };
   
   window.requestAnimationFrame(chart.redrawLoop);
+  
+  chart.update = function() { _redraw_main = true; return chart }
   
   chart.margin = function(_) {
     if (!arguments.length) return options.margin;
@@ -424,8 +413,8 @@ function heatChart(options_override) {
   chart.show_grid = function(_) {
     if (!arguments.length) return options.show_grid;
     options.show_grid = _;
-    chart.outercontainer.selectAll(".grid").style(
-      "display", (options.show_grid == true || options.show_grid == "true") ? "inline" : "none"
+    chart.svg.selectAll(".grid").style(
+      "visibility", (options.show_grid == true || options.show_grid == "true") ? "visible" : "hidden"
     );
     return chart;
   };
@@ -435,11 +424,12 @@ function heatChart(options_override) {
     options.ztransform = _;
     var old_range = z.range(),
         old_domain = z.domain();
-    z = d3.scale[options.ztransform]();
+    z = getScale(options.ztransform);
     do_autoscale();
     z.domain([zdims.zmin, zdims.zmax]).range(old_range);
+    orig_z = z.copy();
     zAxis.scale(z);
-    cb_zoom.y(z);
+    //cb_zoom.y(z);
     cb_resetzoom.call(chart.colorbar.svg.node());
     return chart;
   };
@@ -468,6 +458,92 @@ function heatChart(options_override) {
     return chart;
   }
   
+  chart.aspect_ratio = function(_) {
+    if (!arguments.length) return options.aspect_ratio;
+    options.aspect_ratio = _;
+    var offset_right = (options.show_colorbar) ? options.colorbar_width + 5 : 0;
+    var outercontainer = this.outercontainer,
+        innerwidth = outercontainer.node().clientWidth - offset_right,
+        innerheight = outercontainer.node().clientHeight,
+        width = innerwidth - options.margin.right - options.margin.left,
+        height = innerheight - options.margin.top - options.margin.bottom;
+        
+    var limits = fixAspect(width, height);
+      // Update the x-scale.
+      x.domain([limits.xmin, limits.xmax]);
+        
+      // Update the y-scale.
+      y.domain([limits.ymin, limits.ymax]);
+    orig_x = x.copy();
+    orig_y = y.copy();
+    return chart;
+  }
+  
+  chart.position_cursor = function(_) {
+    if (!arguments.length) return options.position_cursor;
+    options.position_cursor = _;
+    if (options.position_cursor) {
+      var svg = chart.svg,
+          mainview = chart.mainview;
+      var position_cursor = mainview.select("text.position-cursor");
+      if (position_cursor.empty()) {
+        position_cursor = mainview.append("text")
+          .attr("class", "position-cursor")
+          .style("text-anchor", "end");
+      }
+       
+      position_cursor
+        .attr("x", parseFloat(mainview.attr("width")) - 10)
+        .attr("y", parseFloat(mainview.attr("height")) + options.margin.bottom)
+        
+      function get_z(data, dims, x_coord, y_coord) {
+        if (x_coord > dims.xmax || x_coord < dims.xmin || y_coord > dims.ymax || y_coord < dims.ymin) {
+          return NaN
+        }
+        else {
+          var x_bin = Math.floor((x_coord - dims.xmin) / (dims.xmax - dims.xmin) * dims.xdim),
+              y_bin = Math.floor((y_coord - dims.ymin) / (dims.ymax - dims.ymin) * dims.ydim);
+
+          // x_bin and y_bin are int
+          // var row_major = options.source_order.toUpperCase() == "C";
+          // var p = (row_major) ? ((x_bin * dims.ydim) + y_bin) : ((y_bin * dims.xdim) + x_bin);
+          var p = ((x_bin * dims.ydim) + y_bin);
+          return data[p];
+        }
+      }
+      
+      var follow = function (){  
+        if (source_data == null || source_data[0] == null) { return }
+        var mouse = d3.mouse(mainview.node());
+        var x_coord = x.invert(mouse[0]),
+            y_coord = y.invert(mouse[1]);
+        // start at the top and move down through the datasets:
+        var z_coord = NaN;
+        var nd = source_data.length;
+        while ((isNaN(z_coord) || z_coord == null) && nd--) {
+          var sd = source_data[nd];
+          z_coord = get_z(sd.data, sd.dims, x_coord, y_coord);
+        }
+        position_cursor.text(
+          x_coord.toPrecision(5) + 
+          ", " + 
+          y_coord.toPrecision(5) + 
+          ", " + 
+          ((isNaN(z_coord) || z_coord == null) ? 'NaN' : z_coord.toPrecision(5)));
+      }
+      svg
+        .on("mousemove.position_cursor", follow)
+        .on("mouseover.position_cursor", follow);
+    }
+    else {
+      chart.mainview.selectAll(".position-cursor").remove();
+      chart.svg
+        .on("mousemove.position_cursor", null)
+        .on("mouseover.position_cursor", null)
+    }
+    return chart;
+  }
+  
   // drop all the other options into the chart namespace,
   // making objects update rather than overwrite
   for (var attr in options) {
@@ -476,8 +552,8 @@ function heatChart(options_override) {
       chart[attr] = (function(attr) {     
         var accessor = function(_) {
           if (!arguments.length) return options[attr];
-          if (jQuery.type(options[attr]) == "object") {
-            jQuery.extend(options[attr], _); 
+          if (type(options[attr]) == "object") {
+            extend(options[attr], _); 
           } else {
             options[attr] = _;
           }
@@ -497,11 +573,13 @@ function heatChart(options_override) {
   chart.zoomScroll = function(_) {
     if (!arguments.length) return zoomScroll;
     zoomScroll = _;
+    //var scrollLayer = chart.svg.select("g.mainview rect");
+    var zoombox = chart.svg.select("g.mainview rect.zoom.box");
     if (zoomScroll == true) {
-      chart.svg.call(zoom).on("dblclick.zoom", null);
+      zoombox.call(zoom).on("dblclick.zoom", null);
     }
     else if (zoomScroll == false) {
-      chart.svg.on(".zoom", null);
+      zoombox.on(".zoom", null);
     }
     return chart;
   };
@@ -529,6 +607,10 @@ function heatChart(options_override) {
   chart.source_data = function(_) {
     if (!arguments.length) return source_data;
     source_data = _;
+    backing_canvases = source_data.map(function() {
+        return document.createElement('canvas');
+    })
+    backing_images = [];
     if (options.autoscale) {
       do_autoscale();
     }
@@ -537,10 +619,18 @@ function heatChart(options_override) {
   
   chart.interactors = function(_) {
     if (!arguments.length) return interactors;
-    chart.svg.select("g.interactors").call(_);
-    _.x(x).y(y).update();
-    interactors.push(_);
-    return chart;
+    if ( _ == null ) {
+      // null passed intentionally: clear all
+      chart.svg.selectAll("g.interactor-layer g.interactors").remove();
+      interactors = [];
+      return chart;
+    }
+    else {
+      chart.svg.select("g.interactor-layer").call(_);
+      _.x(x).y(y).update();
+      interactors.push(_);
+      return chart;
+    }
   };
   
   chart.destroy = function() {
@@ -554,11 +644,10 @@ function heatChart(options_override) {
     for (var i in rc) {delete rc[i]};
   };
 
-  var get_sxdx = function(){
-    var xdim = source_data[0].length,
-        ydim = source_data.length;
-    var delta_x = (dims.xmax - dims.xmin)/(xdim),
-        delta_y = (dims.ymax - dims.ymin)/(ydim);
+  var get_sxdx = function(image_index){
+    let dims = source_data[image_index].dims;
+    var delta_x = (dims.xmax - dims.xmin)/(dims.xdim),
+        delta_y = (dims.ymax - dims.ymin)/(dims.ydim);
     
     var graph_xmax = Math.max.apply(Math, x.domain()),
         graph_xmin = Math.min.apply(Math, x.domain()),
@@ -588,11 +677,23 @@ function heatChart(options_override) {
   };
   
   var fixAspect = function(width, height) {
-    var aspect_ratio = options.aspect_ratio,
-        xmin = dims.xmin,
-        xmax = dims.xmax,
-        ymin = dims.ymin, 
-        ymax = dims.ymax;
+    var aspect_ratio = options.aspect_ratio;
+    var xmin = Math.min.apply(
+      null,
+      source_data.map(function(sd) { return sd.dims.xmin})
+    );
+    var xmax = Math.max.apply(
+      null,
+      source_data.map(function(sd) { return sd.dims.xmax})
+    );
+    var ymin = Math.min.apply(
+      null,
+      source_data.map(function(sd) { return sd.dims.ymin})
+    );
+    var ymax = Math.max.apply(
+      null,
+      source_data.map(function(sd) { return sd.dims.ymax})
+    );
     if (aspect_ratio == null) {
       return {'xmin': xmin, 'xmax': xmax, 'ymin': ymin, 'ymax': ymax}
     }
@@ -620,51 +721,65 @@ function heatChart(options_override) {
   };
   
   // Compute the pixel colors; scaled by CSS.
-  function drawImage(canvas) {
+  function drawImages(canvas) {
     // canvas is a d3 selection.
     //var plotdata = canvas.data()[0];
     var maxColorIndex = 255,
       overflowIndex = 256,
-      context = canvas.node().getContext("2d"),
-      ctx = backing_canvas.getContext("2d");
+      context = canvas.node().getContext("2d");
+    var source_contexts = backing_canvases.map(function(bc) {
+      return bc.getContext('2d');
+    })
+    
         
     if (_redraw_backing) {
       _redraw_backing = false;
-      var height = source_data.length,
-          width = source_data[0].length;
-      if (backing_image == null || backing_canvas.width != width || backing_canvas.height != height) {
-        backing_canvas.width = width;
-        backing_canvas.height = height;
-        backing_image = ctx.createImageData(width, height);
-      }
-      var data = backing_image.data;
-      var yp, pp=0;
-      for (var yt = 0, p = -1; yt < height; ++yt) {
-        yp = dims.ydim - 1 - yt; // y-axis starts at the top!
-        for (var xp = 0; xp < width; ++xp, pp++) {
-          var c = _colormap_array[plotdata[pp]];
-          data[++p] = c.r;
-          data[++p] = c.g;
-          data[++p] = c.b;
-          data[++p] = c.a;
+      for (var image_index in source_data) {
+        let dims = source_data[image_index].dims;
+        let bc = backing_canvases[image_index];
+        let ctx = source_contexts[image_index];
+        let plotdata = plotdatas[image_index];
+        var height = dims.ydim,
+            width = dims.xdim,
+            size = height * width;
+        let bi = (backing_images || [])[image_index];
+        if (bi == null || bi.width != width || bi.height != height) {
+            bc.width = width;
+            bc.height = height;
+            bi = ctx.createImageData(width, height);
         }
+        var data = bi.data;
+        backing_images[image_index] = bi;
+        var p=0;
+        for (var offset=0; offset < size; offset++) {
+            var c = _colormap_array[plotdata[offset]];
+            data[p++] = c.r;
+            data[p++] = c.g;
+            data[p++] = c.b;
+            data[p++] = c.a;
+        }
+        ctx.putImageData(bi, 0, 0);
       }
-      ctx.putImageData(backing_image, 0, 0);
     }
     
-	  //context.mozImageSmoothingEnabled = false;
-	  //context.webkitImageSmoothingEnabled = false;
-	  //context.msImageSmoothingEnabled = false;
-	  //context.imageSmoothingEnabled = false;
+    //context.mozImageSmoothingEnabled = false;
+    //context.webkitImageSmoothingEnabled = false;
+    //context.msImageSmoothingEnabled = false;
+    //context.imageSmoothingEnabled = false;
 
-	   
+     
     context.clearRect(0,0, context.canvas.width, context.canvas.height);
     if (context.mozImageSmoothingEnabled) context.mozImageSmoothingEnabled = false;
     if (context.imageSmoothingEnabled) context.imageSmoothingEnabled = false;
     if (context.msImageSmoothingEnabled) context.msImageSmoothingEnabled = false;
     if (context.webkitImageSmoothingEnabled) context.webkitImageSmoothingEnabled = false;
-    var sxdx = get_sxdx();
-    context.drawImage(ctx.canvas, sxdx.sx, sxdx.sy, sxdx.sw, sxdx.sh, sxdx.dx, sxdx.dy, sxdx.dw, sxdx.dh);
+
+    for (var image_index in source_contexts) {
+      var sxdx = get_sxdx(image_index);
+      let ctx = source_contexts[image_index];
+      context.drawImage(ctx.canvas, sxdx.sx, sxdx.sy, sxdx.sw, sxdx.sh, sxdx.dx, sxdx.dy, sxdx.dw, sxdx.dh);
+    }
+    
   }
   
   // Compute the pixel colors; scaled by CSS.
@@ -695,42 +810,87 @@ function heatChart(options_override) {
     context.drawImage(ctx.canvas, 0, 0, 1, 256, 0, 0, context.canvas.width, context.canvas.height);
   }
   
-  // call after setting transform
-  var make_plotdata = function() {
-    // source_data is 2d array
-    var plotz = z.copy().range([0,255]);
-    //var crange = d3.range(256);
-    //var lookups = crange.slice(0,255).map(plotz.invert);
-    //var threshold = d3.scale.quantile().domain(lookups).range(crange);
-    var height = source_data.length,
-        width = source_data[0].length;
-    // set the local plotdata:
-    if (plotdata == null || plotdata.length != (width * height)) {
-      plotdata = new Uint8ClampedArray(width*height);
+  function make_all_plotdata() {
+    var new_plotdatas = [];
+    for (var sd of source_data) {
+      new_plotdatas.push(make_single_plotdata(sd.data, sd.dims));  
     }
-    // plotdata is stored in row-major order ("C"), where row is "y"
-    var zz, r, c, dr, plotz, pp=0;
-    for (r = height - 1; r >=0; r--) {
-      dr = source_data[r];
-      for (c = 0; c < width; c++) {
-        zz = dr[c];        
-        plotdata[pp++] = plotz(zz);
-        //plotdata[pp++] = threshold(zz);
-      }
-    }
+    plotdatas = new_plotdatas;
     _redraw_backing = true;
     return
+  }
+
+  // call after setting transform
+  function make_single_plotdata(source_data, dims) {
+    // source_data is 2d array
+    var overflowIndex = 256;
+    var plotz = z.copy().range([0,255]);
+    var clamped = new Uint8ClampedArray(1);
+    var height = dims.ydim,
+        width = dims.xdim,
+        size = height * width;
+    // set the local plotdata:
+    var new_plotdata = new Uint16Array(size);
+    
+    // source data is an array, but the order can be "F" or "C" (default)
+    let f_order = (String(options.source_order).toUpperCase() == 'F');
+    /* from the documentation for the ES ImageData object:
+     * ...Each component is assigned a consecutive index within the array, with the
+     * top left pixel's red component being at index 0 within the array. Pixels then
+     * proceed from left to right, then downward, throughout the array.
+     *
+     * The image array is then "F"-ordered (x-coordinate changes fastest)
+     * with an inversion in y, since the data coordinate system is defined
+     * to begin (0,0) in the lower-left corner.
+     *
+     */
+
+    let image_stride = [1, -width];
+    let image_offset = (height-1) * width;
+    let data_stride = (f_order) ? [1, width] : [height, 1];
+    //let data_offset = 0;
+
+    var image_p, data_p, image_p_i, data_p_i, source_data_p;
+    for (let i=0; i<width; i++) {
+      image_p_i = image_stride[0] * i + image_offset;
+      data_p_i = data_stride[0] * i; // + data_offset; // always zero
+      for (let j=0; j<height; j++) {
+        image_p = image_p_i + image_stride[1] * j;
+        data_p = data_p_i + data_stride[1] * j;
+        source_data_p = source_data[data_p];
+        if (isNaN(source_data_p) || source_data_p == null) {
+          new_plotdata[image_p] = overflowIndex;
+        }
+        else {
+          var pz = plotz(source_data_p);
+          clamped[0] = plotz(source_data_p);
+          new_plotdata[image_p] = clamped[0];
+        }
+      }
+    }
+
+    return new_plotdata;
   };
   
   function do_autoscale() {
-    var new_min_max = get_min_max(source_data, z, Infinity, -Infinity);
-    if (!isFinite(new_min_max.min) || !isFinite(new_min_max.max)) {
-        new_min_max = {min: 1, max: 2}; // need to put something for invalid input scales.
-    } 
-        zdims.zmin = new_min_max.min;
-        zdims.zmax = new_min_max.max;
-    z.domain([zdims.zmin, zdims.zmax]);
-    cb_zoom.y(z);
+    var min = +Infinity;
+    var max = -Infinity;
+
+    source_data.forEach(function (sd) {
+      var new_min_max = get_min_max(sd.data, z);
+      min = Math.min(min, new_min_max.min);
+      max = Math.max(max, new_min_max.max);
+    })
+
+    if (!isFinite(min) || !isFinite(max)) {
+        min = 1;
+        max = 2; // need to put something for invalid input scales.
+    }
+
+    zdims.zmin = min;
+    zdims.zmax = max;
+    z.domain([min, max]);
+    //cb_zoom.y(z);
     zAxis.scale(z);
     cb_zoomed.call(chart.colorbar.svg.node()); 
     chart.colorbar.svg.select(".z.axis").call(zAxis);
@@ -738,34 +898,29 @@ function heatChart(options_override) {
   }
   chart.do_autoscale = do_autoscale;
   
-  function get_min_max(array, transform, existing_min, existing_max) {
-    var new_min_max = {min: existing_min, max: existing_max};
-    for (var i=0; i<array.length; i++) {
-      var subarr = array[i];
-      if (subarr == null) { continue }
-      if (!subarr.hasOwnProperty('length')) {
-        var t_el = transform(subarr);
-        if (isFinite(t_el)) {
-          new_min_max = {min: subarr, max: subarr};
+  function get_min_max(array, transform) {
+    var min = Infinity;
+    var max = -Infinity;
+    var len = array.length;
+    while (len--) {
+      let element = array[len];
+      let t_el = transform(element);
+      if (isFinite(t_el)) {
+        if (element > max) {
+          max = element;
         }
-      } else {
-        new_min_max = get_min_max(subarr, transform, existing_min, existing_max);
-      }
-      if (existing_min == undefined || new_min_max.min < existing_min) {
-        var existing_min = new_min_max.min;
-      }
-      if (existing_max == undefined || new_min_max.max > existing_max) {
-        var existing_max = new_min_max.max;
-      }
-
+        if (element < min) {
+          min = element;
+        }
+      } 
     }
-    return {min: existing_min, max: existing_max}
+    return {min: min, max: max}
   };
   
   function generate_cumsums() {
     //console.log('generating cumsum');
-    var height = source_data.length,
-        width = source_data[0].length,
+    var height = dims.ydim,
+        width = dims.xdim,
         data = source_data;
     
     var cumsum_x = [], cumsum_x_col;
@@ -779,7 +934,7 @@ function heatChart(options_override) {
       cumsum_x_col = [0]; xsum = 0;
       cumsum_y_col = [];
       for (var r = 0; r < height; r++) {
-        var z = data[r][c];
+        var z = data[r*width + c];
         if (isFinite(z)) {
           xsum += z;
           ysum[r] += z;
@@ -799,7 +954,7 @@ function heatChart(options_override) {
   
   chart.autofit = function() {
     var offset_right = (options.show_colorbar) ? options.colorbar_width + 5 : 0;
-    var outercontainer = this.outercontainer,
+    var outercontainer = chart.outercontainer,
         innerwidth = outercontainer.node().clientWidth - offset_right,
         innerheight = outercontainer.node().clientHeight,
         width = innerwidth - options.margin.right - options.margin.left,
@@ -816,7 +971,10 @@ function heatChart(options_override) {
         .domain([limits.ymin, limits.ymax])
         .range([height, 0]);
     
-    zoom.x(x).y(y);
+    orig_x = x.copy();
+    orig_y = y.copy();
+    
+    //zoom.x(x).y(y);
     outercontainer.select(".heatmap-container")
       .attr("width", innerwidth)
       .attr("height", innerheight)
@@ -832,13 +990,14 @@ function heatChart(options_override) {
     chart.svg.attr("width", width + options.margin.left + options.margin.right)
           .attr("height", height + options.margin.top + options.margin.bottom);
     
-    chart.svg.selectAll("g.x")
-        .attr("transform", "translate(" + options.margin.left + "," + (height + options.margin.top) + ")");
-    chart.svg.selectAll("g.y")
-        .attr("transform", "translate(" + options.margin.left + "," + options.margin.top + ")"); 
+    chart.mainview
+      .attr("width", width)
+      .attr("height", height)
+      .selectAll("g.x")
+        .attr("transform", "translate(0, " + height + ")");
     
-    chart.svg.selectAll("g.x.axis text").attr("x", width/2.0);
-    chart.svg.selectAll("g.y.axis text").attr("x", -height/2.0);
+    chart.svg.selectAll(".x.axis-label").attr("x", width/2.0);
+    chart.svg.selectAll(".y.axis-label").attr("x", -height/2.0);
           
     var innerwidth = options.colorbar_width,
         width = innerwidth - options.cb_margin.right,
@@ -866,6 +1025,7 @@ function heatChart(options_override) {
     chart.colorbar.svg.selectAll("g.z")
         .attr("transform", "translate(" + width + "," + options.cb_margin.top + ")");
 
+    chart.position_cursor(options.position_cursor);
     _redraw_main = true;
   }
   
@@ -875,7 +1035,11 @@ function heatChart(options_override) {
   
 }
 
-var jet_colormap = d3.scale.linear()
+function getScale(scalename) {
+  return d3['scale' + scalename.slice(0,1).toUpperCase() + scalename.slice(1).toLowerCase()]();
+}
+
+var jet_colormap = d3.scaleLinear()
     .domain([0, 31, 63, 95, 127, 159, 191, 223, 255])
     /* Jet:
       #00007F: dark blue
@@ -890,3 +1054,4 @@ var jet_colormap = d3.scale.linear()
       #00000000: transparent for overflow
     */
     .range(["#00007F", "#0000FF","#007FFF", "#00FFFF","#7FFF7F","#FFFF00","#FF7F00","#FF0000","#7F0000"]);
+

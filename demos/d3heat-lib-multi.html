@@ -62,7 +62,7 @@ canvas {
   <script src="//d3js.org/d3.v4.min.js" charset="utf-8"></script>
   <script src="../lib/jquery-extend.js"></script>
   <script src="../lib/generate-id.js"></script>
-  <script src="../lib/heat-chart.js" charset="utf-8">></script>
+  <script src="../lib/heat-chart-multi.js" charset="utf-8">></script>
   <script src="../lib/colormap.js" charset="utf-8">></script>
 
 </head>
@@ -82,7 +82,7 @@ window.onload = function() {
   
   colormap_select.value = "jet"; // default
   
-  chart = heatChart.default({ztransform: 'log', margin: {"bottom": 75}, source_order: "F"})
+  chart = heatChartMulti.default({ztransform: 'log', margin: {"bottom": 75}, source_order: "F"})
     .autoscale(true)
     .xlabel("Qx (\u212B\u207B\u00B9)")
     .ylabel("Qz (\u212B\u207B\u00B9)");
@@ -100,10 +100,34 @@ window.onload = function() {
           unrolled[p++] = row[i];
         }
       }
-      chart.dims({xdim: xdim, ydim: ydim});
+      var source_data = [
+          {
+              data: unrolled,
+              dims: {
+                xdim: xdim,
+                xmin: 0,
+                xmax: xdim,
+                ymin: 0,
+                ymax: ydim,
+                ydim: ydim
+              }
+          }, 
+          {
+              data: unrolled,
+              dims: {
+                xdim: xdim,
+                xmin: xdim*0.25,
+                xmax: xdim*0.5,
+                ymin: 200,
+                ymax: ydim+20+ydim,
+                ydim: ydim
+              }
+          }
+      ];
+      //chart.dims({xdim: xdim, ydim: ydim});
         
       c = d3.select("#plot1")
-        .data([unrolled])
+        .data([source_data])
         .call(chart);
   });
 }

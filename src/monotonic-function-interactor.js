@@ -17,6 +17,7 @@ function monotonicFunctionInteractor(state, x, y) {
   var interpolation = (state.interpolation == null) ? 'Linear' : state.interpolation;
 
   var line = d3.line()
+    .defined(function(d) { return (d && d != null && isFinite(d) && isFinite(y(state.functional(x.invert(d))))) })
     .x(function (d) { return d; })
     .y(function (d) { return y(state.functional(x.invert(d))); })
     .curve(d3["curve" + interpolation]);
@@ -31,9 +32,10 @@ function monotonicFunctionInteractor(state, x, y) {
           .style("stroke-linecap", "round")
           .style("stroke-width", "4px")
           .style("fill", "none")
-    knot_group.append("path")
+    var path = knot_group.append("path")
       .classed("functional", true);
       
+    interactor.path = path;
     interactor.update = function() {
       var knot_x = (state.show_lines == false) ? [] : 
         d3.range(0, x.range()[1], state.dx || 1);
